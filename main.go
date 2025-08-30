@@ -99,7 +99,8 @@ func setupRoutes() *mux.Router {
   "version": "1.0.0",
   "endpoints": {
     "/api/v1/institutions": "GET - List all unique institutions",
-    "/api/v1/documents?kurum_adi={name}": "GET - Get documents by institution",
+    "/api/v1/documents?kurum_adi={name}": "GET - Get documents by institution (query param)",
+    "/api/v1/kurum/{kurum_slug}": "GET - Get documents by institution (URL path)",
     "/api/v1/documents/{slug}": "GET - Get document details with content",
     "/api/v1/health": "GET - Health check"
   },
