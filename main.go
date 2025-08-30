@@ -79,6 +79,9 @@ func setupRoutes() *mux.Router {
         // Document endpoints
         api.HandleFunc("/documents", handlers.GetDocumentsByInstitution).Methods("GET", "OPTIONS")
         api.HandleFunc("/documents/{slug}", handlers.GetDocumentBySlug).Methods("GET", "OPTIONS")
+        
+        // Institution-based routing (alternative endpoint)
+        api.HandleFunc("/kurum/{kurum_slug}", handlers.GetDocumentsByInstitutionSlug).Methods("GET", "OPTIONS")
 
         // Health check endpoint
         api.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
