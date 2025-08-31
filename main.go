@@ -83,6 +83,11 @@ func setupRoutes() *mux.Router {
         // Institution-based routing (alternative endpoint)
         api.HandleFunc("/kurum/{kurum_slug}", handlers.GetDocumentsByInstitutionSlug).Methods("GET", "OPTIONS")
 
+        // Sitemap endpoints
+        api.HandleFunc("/sitemap/institutions", handlers.GetSitemapInstitutions).Methods("GET", "OPTIONS")
+        api.HandleFunc("/sitemap/documents", handlers.GetSitemapDocumentsByInstitution).Methods("GET", "OPTIONS")
+        api.HandleFunc("/sitemap/all-documents", handlers.GetSitemapAllDocuments).Methods("GET", "OPTIONS")
+
         // Health check endpoint
         api.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
                 w.Header().Set("Content-Type", "application/json")
@@ -102,6 +107,9 @@ func setupRoutes() *mux.Router {
     "/api/v1/documents?kurum_adi={name}": "GET - Get documents by institution (query param)",
     "/api/v1/kurum/{kurum_slug}": "GET - Get documents by institution (URL path)",
     "/api/v1/documents/{slug}": "GET - Get document details with content",
+    "/api/v1/sitemap/institutions": "GET - Sitemap: All institutions",
+    "/api/v1/sitemap/documents?kurum_adi={name}": "GET - Sitemap: Documents by institution",
+    "/api/v1/sitemap/all-documents": "GET - Sitemap: All documents",
     "/api/v1/health": "GET - Health check"
   },
   "database": "Connected to MongoDB Atlas",
