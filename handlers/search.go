@@ -31,6 +31,7 @@ type SearchResult struct {
         MatchType            string  `json:"match_type"`    // "title", "content", "tags", "institution"
         ContentPreview       string  `json:"content_preview,omitempty"`
         RelevanceScore       float64 `json:"relevance_score"`
+        RelevancePercentage  int     `json:"relevance_percentage"`
 }
 
 // GlobalSearch performs comprehensive search across titles, content, tags, and institutions
@@ -189,6 +190,7 @@ func searchInMetadata(ctx context.Context, query string, limit int64) ([]SearchR
 
                 // Determine match type based on where the query was found
                 result.MatchType = determineMatchType(doc, query)
+                result.RelevancePercentage = calculatePercentage(result.RelevanceScore)
                 results = append(results, result)
         }
 
@@ -248,6 +250,7 @@ func searchInContent(ctx context.Context, query string, limit int64) ([]SearchRe
                         RelevanceScore:       calculateContentRelevance(content.Icerik, query),
                 }
 
+                result.RelevancePercentage = calculatePercentage(result.RelevanceScore)
                 results = append(results, result)
         }
 
@@ -269,6 +272,7 @@ func mergeResults(metadataResults, contentResults []SearchResult) []SearchResult
                         // Merge: keep higher relevance score and combine match types
                         if contentResult.RelevanceScore > existing.RelevanceScore {
                                 existing.RelevanceScore = contentResult.RelevanceScore
+                                existing.RelevancePercentage = contentResult.RelevancePercentage
                         }
                         existing.MatchType = existing.MatchType + "+content"
                         existing.ContentPreview = contentResult.ContentPreview
@@ -406,4 +410,41 @@ func sortResultsByRelevance(results []SearchResult) {
                         }
                 }
         }
+}
+
+// calculatePercentage converts relevance score to percentage (0-100)
+func calculatePercentage(score float64) int {
+        if score <= 0 {
+                return 0
+        }
+        
+        // Normalize different score ranges
+        var percentage float64
+        
+        if score >= 1000 {
+                // Very high relevance (title + content matches)
+                percentage = 95 + (score-1000)/10000*5  // 95-100%
+        } else if score >= 100 {
+                // High relevance (multiple matches)
+                percentage = 80 + (score-100)/900*15     // 80-95%
+        } else if score >= 50 {
+                // Medium-high relevance
+                percentage = 60 + (score-50)/50*20       // 60-80%
+        } else if score >= 10 {
+                // Medium relevance
+                percentage = 30 + (score-10)/40*30       // 30-60%
+        } else if score >= 1 {
+                // Low relevance
+                percentage = 10 + (score-1)/9*20         // 10-30%
+        } else {
+                // Very low relevance
+                percentage = score * 10                  // 0-10%
+        }
+        
+        // Cap at 100%
+        if percentage > 100 {
+                percentage = 100
+        }
+        
+        return int(percentage)
 }
