@@ -49,6 +49,9 @@ func GlobalSearch(w http.ResponseWriter, r *http.Request) {
                 return
         }
 
+        // Get institution filter (optional)
+        institution := r.URL.Query().Get("kurum")
+
         // Clean and prepare query
         query = strings.TrimSpace(query)
         if len(query) < 2 {
@@ -82,7 +85,7 @@ func GlobalSearch(w http.ResponseWriter, r *http.Request) {
         var allResults []SearchResult
 
         // Phase 1: Search in metadata (titles, descriptions, tags, institutions)
-        metadataResults, err := searchInMetadata(ctx, query, limit*2) // Get more results to filter later
+        metadataResults, err := searchInMetadata(ctx, query, institution, limit*2) // Get more results to filter later
         if err != nil {
                 utils.SendErrorResponse(w, http.StatusInternalServerError, "Failed to search metadata: "+err.Error())
                 return
@@ -90,7 +93,7 @@ func GlobalSearch(w http.ResponseWriter, r *http.Request) {
         allResults = append(allResults, metadataResults...)
 
         // Phase 2: Search in content
-        contentResults, err := searchInContent(ctx, query, limit*2)
+        contentResults, err := searchInContent(ctx, query, institution, limit*2)
         if err != nil {
                 utils.SendErrorResponse(w, http.StatusInternalServerError, "Failed to search content: "+err.Error())
                 return
@@ -141,22 +144,37 @@ func GlobalSearch(w http.ResponseWriter, r *http.Request) {
 }
 
 // searchInMetadata searches in document metadata (titles, descriptions, tags, institutions)
-func searchInMetadata(ctx context.Context, query string, limit int64) ([]SearchResult, error) {
+func searchInMetadata(ctx context.Context, query string, institution string, limit int64) ([]SearchResult, error) {
         collection := config.GetMetadataCollection(mongoClient)
         
         // Create regex for case-insensitive search
         searchRegex := bson.M{"$regex": primitive.Regex{Pattern: query, Options: "i"}}
         
-        // Build comprehensive search filter
-        filter := bson.M{
-                "status": "aktif",
-                "$or": []bson.M{
-                        {"pdf_adi": searchRegex},           // Search in title
-                        {"aciklama": searchRegex},          // Search in description  
-                        {"anahtar_kelimeler": searchRegex}, // Search in keywords
-                        {"etiketler": searchRegex},         // Search in tags
-                        {"kurum_adi": searchRegex},         // Search in institution name
-                },
+        // Build base search conditions
+        searchConditions := []bson.M{
+                {"pdf_adi": searchRegex},           // Search in title
+                {"aciklama": searchRegex},          // Search in description  
+                {"anahtar_kelimeler": searchRegex}, // Search in keywords
+                {"etiketler": searchRegex},         // Search in tags
+                {"kurum_adi": searchRegex},         // Search in institution name
+        }
+        
+        // Build comprehensive search filter with optional institution filter
+        var filter bson.M
+        if institution != "" {
+                institutionRegex := bson.M{"$regex": primitive.Regex{Pattern: institution, Options: "i"}}
+                filter = bson.M{
+                        "status": "aktif",
+                        "$and": []bson.M{
+                                {"kurum_adi": institutionRegex},
+                                {"$or": searchConditions},
+                        },
+                }
+        } else {
+                filter = bson.M{
+                        "status": "aktif",
+                        "$or": searchConditions,
+                }
         }
 
         findOptions := options.Find()
@@ -200,7 +218,7 @@ func searchInMetadata(ctx context.Context, query string, limit int64) ([]SearchR
 }
 
 // searchInContent searches in document content
-func searchInContent(ctx context.Context, query string, limit int64) ([]SearchResult, error) {
+func searchInContent(ctx context.Context, query string, institution string, limit int64) ([]SearchResult, error) {
         contentCollection := config.GetContentCollection(mongoClient)
         metadataCollection := config.GetMetadataCollection(mongoClient)
         
@@ -231,6 +249,12 @@ func searchInContent(ctx context.Context, query string, limit int64) ([]SearchRe
                 metadataFilter := bson.M{
                         "_id": content.MetadataID,
                         "status": "aktif",
+                }
+                
+                // Add institution filter if specified
+                if institution != "" {
+                        institutionRegex := bson.M{"$regex": primitive.Regex{Pattern: institution, Options: "i"}}
+                        metadataFilter["kurum_adi"] = institutionRegex
                 }
                 
                 if err := metadataCollection.FindOne(ctx, metadataFilter).Decode(&metadata); err != nil {
