@@ -88,8 +88,9 @@ func setupRoutes() *mux.Router {
         api.HandleFunc("/sitemap/documents", handlers.GetSitemapDocumentsByInstitution).Methods("GET", "OPTIONS")
         api.HandleFunc("/sitemap/all-documents", handlers.GetSitemapAllDocuments).Methods("GET", "OPTIONS")
 
-        // Search endpoint
+        // Search endpoints
         api.HandleFunc("/search", handlers.GlobalSearch).Methods("GET", "OPTIONS")
+        api.HandleFunc("/autocomplete", handlers.Autocomplete).Methods("GET", "OPTIONS")
 
         // Health check endpoint
         api.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -113,7 +114,8 @@ func setupRoutes() *mux.Router {
     "/api/v1/sitemap/institutions": "GET - Sitemap: All institutions",
     "/api/v1/sitemap/documents?kurum_adi={name}": "GET - Sitemap: Documents by institution",
     "/api/v1/sitemap/all-documents": "GET - Sitemap: All documents",
-    "/api/v1/search?q={query}&limit={limit}&offset={offset}": "GET - Global search in titles, content, tags, institutions",
+    "/api/v1/search?q={query}&limit={limit}&offset={offset}&kurum={institution}": "GET - Global search in titles, content, tags, institutions",
+    "/api/v1/autocomplete?q={partial_query}&limit={limit}&kurum={institution}": "GET - Autocomplete suggestions for search",
     "/api/v1/health": "GET - Health check"
   },
   "database": "Connected to MongoDB Atlas",
