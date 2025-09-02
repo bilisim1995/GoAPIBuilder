@@ -32,6 +32,7 @@ type SearchResult struct {
         ContentPreview       string  `json:"content_preview,omitempty"`
         RelevanceScore       float64 `json:"relevance_score"`
         RelevancePercentage  int     `json:"relevance_percentage"`
+        MatchCount           int     `json:"match_count"`
 }
 
 // GlobalSearch performs comprehensive search across titles, content, tags, and institutions
@@ -191,6 +192,7 @@ func searchInMetadata(ctx context.Context, query string, limit int64) ([]SearchR
                 // Determine match type based on where the query was found
                 result.MatchType = determineMatchType(doc, query)
                 result.RelevancePercentage = calculatePercentage(result.RelevanceScore)
+                result.MatchCount = countMatches(doc, query)
                 results = append(results, result)
         }
 
@@ -251,6 +253,7 @@ func searchInContent(ctx context.Context, query string, limit int64) ([]SearchRe
                 }
 
                 result.RelevancePercentage = calculatePercentage(result.RelevanceScore)
+                result.MatchCount = countContentMatches(content.Icerik, query)
                 results = append(results, result)
         }
 
@@ -276,6 +279,7 @@ func mergeResults(metadataResults, contentResults []SearchResult) []SearchResult
                         }
                         existing.MatchType = existing.MatchType + "+content"
                         existing.ContentPreview = contentResult.ContentPreview
+                        existing.MatchCount += contentResult.MatchCount // Add content matches to metadata matches
                         resultMap[contentResult.ID] = existing
                 } else {
                         resultMap[contentResult.ID] = contentResult
@@ -447,4 +451,35 @@ func calculatePercentage(score float64) int {
         }
         
         return int(percentage)
+}
+
+// countMatches counts how many times the query appears in metadata fields
+func countMatches(doc models.DocumentMetadata, query string) int {
+        count := 0
+        queryLower := strings.ToLower(query)
+        
+        // Count in title
+        count += strings.Count(strings.ToLower(doc.PdfAdi), queryLower)
+        
+        // Count in institution name
+        count += strings.Count(strings.ToLower(doc.KurumAdi), queryLower)
+        
+        // Count in tags
+        count += strings.Count(strings.ToLower(doc.Etiketler), queryLower)
+        
+        // Count in keywords
+        count += strings.Count(strings.ToLower(doc.AnahtarKelimeler), queryLower)
+        
+        // Count in description
+        count += strings.Count(strings.ToLower(doc.Aciklama), queryLower)
+        
+        return count
+}
+
+// countContentMatches counts how many times the query appears in content
+func countContentMatches(content, query string) int {
+        queryLower := strings.ToLower(query)
+        contentLower := strings.ToLower(content)
+        
+        return strings.Count(contentLower, queryLower)
 }
