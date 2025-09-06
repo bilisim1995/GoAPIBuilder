@@ -4,6 +4,7 @@ import (
         "context"
         "encoding/json"
         "net/http"
+        "sort"
         "time"
 
         "go.mongodb.org/mongo-driver/bson"
@@ -21,7 +22,7 @@ func InitHandlers(client *mongo.Client) {
         mongoClient = client
 }
 
-// GetInstitutions returns a list of unique institutions from the metadata collection
+// GetInstitutions returns a list of unique institutions from kurumlar collection with document counts
 func GetInstitutions(w http.ResponseWriter, r *http.Request) {
         // Handle CORS preflight
         if r.Method == "OPTIONS" {
@@ -32,9 +33,19 @@ func GetInstitutions(w http.ResponseWriter, r *http.Request) {
         ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
         defer cancel()
 
-        collection := config.GetMetadataCollection(mongoClient)
+        // Get all kurumlar from cache
+        allKurumlar := utils.GetAllKurumlar()
+        if len(allKurumlar) == 0 {
+                // If cache is empty, try to refresh it
+                if err := utils.RefreshKurumlarCache(mongoClient); err != nil {
+                        utils.SendErrorResponse(w, http.StatusInternalServerError, "Failed to load institutions: "+err.Error())
+                        return
+                }
+                allKurumlar = utils.GetAllKurumlar()
+        }
 
-        // Aggregation pipeline to get unique institutions with document counts and logos
+        // Get document counts for each institution from metadata collection
+        metadataCollection := config.GetMetadataCollection(mongoClient)
         pipeline := []bson.M{
                 {
                         "$match": bson.M{
@@ -43,28 +54,50 @@ func GetInstitutions(w http.ResponseWriter, r *http.Request) {
                 },
                 {
                         "$group": bson.M{
-                                "_id":        "$kurum_adi",
-                                "kurum_logo": bson.M{"$first": "$kurum_logo"}, // Get the logo from first document
-                                "count":      bson.M{"$sum": 1},
+                                "_id":   "$kurum_id",
+                                "count": bson.M{"$sum": 1},
                         },
-                },
-                {
-                        "$sort": bson.M{"_id": 1}, // Sort alphabetically
                 },
         }
 
-        cursor, err := collection.Aggregate(ctx, pipeline)
+        cursor, err := metadataCollection.Aggregate(ctx, pipeline)
         if err != nil {
-                utils.SendErrorResponse(w, http.StatusInternalServerError, "Failed to fetch institutions: "+err.Error())
+                utils.SendErrorResponse(w, http.StatusInternalServerError, "Failed to count documents: "+err.Error())
                 return
         }
         defer cursor.Close(ctx)
 
-        var institutions []models.Institution
-        if err := cursor.All(ctx, &institutions); err != nil {
-                utils.SendErrorResponse(w, http.StatusInternalServerError, "Failed to decode institutions: "+err.Error())
-                return
+        // Create map of kurum_id -> document count
+        countMap := make(map[string]int32)
+        var countResult struct {
+                ID    string `bson:"_id"`
+                Count int32  `bson:"count"`
         }
+        
+        for cursor.Next(ctx, &countResult) {
+                countMap[countResult.ID] = countResult.Count
+        }
+
+        // Build institutions response with kurum data and document counts
+        var institutions []models.Institution
+        for _, kurum := range allKurumlar {
+                count, exists := countMap[kurum.KurumID]
+                if !exists || count == 0 {
+                        continue // Skip institutions with no active documents
+                }
+
+                institution := models.Institution{
+                        KurumAdi:  kurum.KurumAdi,
+                        KurumLogo: kurum.KurumLogo,
+                        Count:     count,
+                }
+                institutions = append(institutions, institution)
+        }
+
+        // Sort alphabetically by kurum_adi
+        sort.Slice(institutions, func(i, j int) bool {
+                return institutions[i].KurumAdi < institutions[j].KurumAdi
+        })
 
         // Send successful response
         response := models.APIResponse{
