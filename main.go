@@ -110,8 +110,8 @@ func setupRoutes() *mux.Router {
         
         
 
-        // Root endpoint - API documentation
-        router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+        // Root endpoint - API documentation (with basic authentication)
+        router.HandleFunc("/", middleware.BasicAuth(func(w http.ResponseWriter, r *http.Request) {
                 w.Header().Set("Content-Type", "application/json")
                 w.WriteHeader(http.StatusOK)
                 response := `{
@@ -130,10 +130,11 @@ func setupRoutes() *mux.Router {
     "/api/v1/health": "GET - Health check"
   },
   "database": "Connected to MongoDB Atlas",
-  "timestamp": "` + time.Now().UTC().Format(time.RFC3339) + `"
+  "timestamp": "` + time.Now().UTC().Format(time.RFC3339) + `",
+  "auth": "Basic authentication required for this page only"
 }`
                 fmt.Fprint(w, response)
-        }).Methods("GET", "OPTIONS")
+        })).Methods("GET", "OPTIONS")
 
         return router
 }
