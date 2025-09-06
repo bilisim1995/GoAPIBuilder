@@ -73,8 +73,25 @@ func setupRoutes() *mux.Router {
         // API routes
         api := router.PathPrefix("/api/v1").Subrouter()
 
-        // Institution endpoints
+        // Institution endpoints (existing)
         api.HandleFunc("/institutions", handlers.GetInstitutions).Methods("GET", "OPTIONS")
+        
+        // Institution CRUD endpoints (new)
+        api.HandleFunc("/admin/institutions", handlers.GetInstitutions).Methods("GET", "OPTIONS")
+        api.HandleFunc("/admin/institutions", handlers.CreateInstitution).Methods("POST", "OPTIONS")
+        api.HandleFunc("/admin/institutions/select", handlers.GetInstitutionsForSelect).Methods("GET", "OPTIONS")
+        api.PathPrefix("/admin/institutions/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+                switch r.Method {
+                case "GET", "OPTIONS":
+                        handlers.GetInstitutionByID(w, r)
+                case "PUT", "PATCH", "OPTIONS":
+                        handlers.UpdateInstitution(w, r)
+                case "DELETE", "OPTIONS":
+                        handlers.DeleteInstitution(w, r)
+                default:
+                        http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+                }
+        })
 
         // Document endpoints
         api.HandleFunc("/documents", handlers.GetDocumentsByInstitution).Methods("GET", "OPTIONS")

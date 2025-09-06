@@ -1,10 +1,15 @@
 package config
 
 import (
-	"go.mongodb.org/mongo-driver/mongo"
+        "os"
+        "go.mongodb.org/mongo-driver/mongo"
 )
 
 // GetInstitutionsCollection returns the institutions collection
 func GetInstitutionsCollection(client *mongo.Client) *mongo.Collection {
-	return client.Database(MongoDatabase).Collection("institutions")
+        database := os.Getenv("MONGODB_DATABASE")
+        if database == "" {
+                database = "mevzuatgpt"
+        }
+        return client.Database(database).Collection("institutions")
 }
