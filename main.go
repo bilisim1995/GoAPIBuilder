@@ -106,12 +106,6 @@ func setupRoutes() *mux.Router {
                 fmt.Fprint(w, `{"status":"healthy","timestamp":"` + time.Now().UTC().Format(time.RFC3339) + `"}`)
         }).Methods("GET", "OPTIONS")
         
-        // Debug endpoint for cache status
-        api.HandleFunc("/debug/cache", func(w http.ResponseWriter, r *http.Request) {
-                w.Header().Set("Content-Type", "application/json")
-                w.WriteHeader(http.StatusOK)
-                json.NewEncoder(w).Encode(utils.GetCacheStatus())
-        }).Methods("GET", "OPTIONS")
 
         // Root endpoint - API documentation
         router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
