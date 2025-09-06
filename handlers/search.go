@@ -167,7 +167,7 @@ func searchInMetadata(ctx context.Context, query string, institution string, lim
                 allKurumlar := utils.GetAllKurumlar()
                 for _, kurum := range allKurumlar {
                         if strings.Contains(strings.ToLower(kurum.KurumAdi), strings.ToLower(institution)) {
-                                kurumID = kurum.KurumID
+                                kurumID = kurum.ID.Hex()
                                 break
                         }
                 }

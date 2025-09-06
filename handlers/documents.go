@@ -268,7 +268,7 @@ func GetDocumentsByInstitutionSlug(w http.ResponseWriter, r *http.Request) {
                 kurumSlugNormalized := strings.ReplaceAll(strings.ToLower(kurum.KurumAdi), " ", "-")
                 if strings.EqualFold(kurumSlugNormalized, kurumSlug) || 
                    strings.EqualFold(kurum.KurumAdi, kurumSlug) {
-                        kurumID = kurum.KurumID
+                        kurumID = kurum.ID.Hex()
                         break
                 }
         }

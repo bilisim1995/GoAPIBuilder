@@ -85,13 +85,13 @@ func GetInstitutions(w http.ResponseWriter, r *http.Request) {
         var institutions []models.Institution
         for _, kurum := range allKurumlar {
                 // Show all institutions from kurumlar table, even if no documents
-                count, exists := countMap[kurum.KurumID]
+                count, exists := countMap[kurum.ID.Hex()]
                 if !exists {
                         count = 0 // Set count to 0 if no documents found
                 }
 
                 institution := models.Institution{
-                        KurumID:   kurum.KurumID,
+                        KurumID:   kurum.ID.Hex(),
                         KurumAdi:  kurum.KurumAdi,
                         KurumLogo: kurum.KurumLogo,
                         Count:     count,

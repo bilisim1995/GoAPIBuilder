@@ -43,7 +43,7 @@ func LoadKurumlarToCache(mongoClient *mongo.Client) error {
         // Clear existing cache and reload
         cache.kurumlar = make(map[string]models.Kurum)
         for _, kurum := range kurumlar {
-                cache.kurumlar[kurum.KurumID] = kurum
+                cache.kurumlar[kurum.ID.Hex()] = kurum
         }
         
         log.Printf("Loaded %d institutions into cache", len(kurumlar))
@@ -100,7 +100,7 @@ func GetCacheStatus() map[string]interface{} {
         
         for _, kurum := range cache.kurumlar {
                 item := map[string]string{
-                        "kurum_id": kurum.KurumID,
+                        "kurum_id": kurum.ID.Hex(),
                         "kurum_adi": kurum.KurumAdi,
                         "kurum_logo": kurum.KurumLogo,
                 }

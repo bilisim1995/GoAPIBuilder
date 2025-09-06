@@ -105,32 +105,6 @@ func setupRoutes() *mux.Router {
                 fmt.Fprint(w, `{"status":"healthy","timestamp":"` + time.Now().UTC().Format(time.RFC3339) + `"}`)
         }).Methods("GET", "OPTIONS")
         
-        // Debug endpoint for cache status
-        api.HandleFunc("/debug/cache", func(w http.ResponseWriter, r *http.Request) {
-                w.Header().Set("Content-Type", "application/json")
-                w.WriteHeader(http.StatusOK)
-                status := utils.GetCacheStatus()
-                fmt.Fprintf(w, `{"cache_size":%d,"kurumlar":[`, status["cache_size"])
-                kurumlar := status["kurumlar"].([]map[string]string)
-                for i, kurum := range kurumlar {
-                        if i > 0 { fmt.Fprint(w, ",") }
-                        fmt.Fprintf(w, `{"kurum_id":"%s","kurum_adi":"%s","kurum_logo":"%s"}`, 
-                                kurum["kurum_id"], kurum["kurum_adi"], kurum["kurum_logo"])
-                }
-                fmt.Fprint(w, `]}`)
-        }).Methods("GET", "OPTIONS")
-        
-        // Cache refresh endpoint
-        api.HandleFunc("/debug/refresh", func(w http.ResponseWriter, r *http.Request) {
-                if err := utils.RefreshKurumlarCache(mongoClient); err != nil {
-                        w.WriteHeader(http.StatusInternalServerError)
-                        fmt.Fprintf(w, `{"success":false,"error":"%s"}`, err.Error())
-                        return
-                }
-                w.Header().Set("Content-Type", "application/json")
-                w.WriteHeader(http.StatusOK)
-                fmt.Fprint(w, `{"success":true,"message":"Cache refreshed"}`)
-        }).Methods("GET", "OPTIONS")
 
         // Root endpoint - API documentation
         router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

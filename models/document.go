@@ -6,8 +6,7 @@ import (
 
 // Kurum represents institution data from kurumlar collection
 type Kurum struct {
-        ID        primitive.ObjectID `bson:"_id" json:"id"`
-        KurumID   string             `bson:"kurum_id" json:"kurum_id"`
+        ID        primitive.ObjectID `bson:"_id" json:"kurum_id"`
         KurumAdi  string             `bson:"kurum_adi" json:"kurum_adi"`
         KurumLogo string             `bson:"kurum_logo" json:"kurum_logo"`
 }
