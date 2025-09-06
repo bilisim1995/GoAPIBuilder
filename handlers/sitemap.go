@@ -3,6 +3,7 @@ package handlers
 import (
         "context"
         "encoding/json"
+        "fmt"
         "net/http"
         "strings"
         "time"
@@ -14,6 +15,8 @@ import (
         "legal-documents-api/models"
         "legal-documents-api/utils"
 )
+
+const DOMAIN = "https://portal.mevzuatgpt.org"
 
 // SitemapInstitution represents institution data for sitemap
 type SitemapInstitution struct {
@@ -205,6 +208,68 @@ func GetSitemapAllDocuments(w http.ResponseWriter, r *http.Request) {
         w.Header().Set("Content-Type", "application/json")
         w.WriteHeader(http.StatusOK)
         json.NewEncoder(w).Encode(response)
+}
+
+// GetSitemapXML returns XML sitemap for all documents
+func GetSitemapXML(w http.ResponseWriter, r *http.Request) {
+        if r.Method == "OPTIONS" {
+                w.WriteHeader(http.StatusOK)
+                return
+        }
+
+        ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+        defer cancel()
+
+        collection := config.GetMetadataCollection(mongoClient)
+
+        // Get all active documents
+        filter := bson.M{"status": "aktif"}
+        findOptions := options.Find()
+        findOptions.SetSort(bson.M{"belge_yayin_tarihi": -1})
+        findOptions.SetProjection(bson.M{
+                "url_slug":           1,
+                "belge_yayin_tarihi": 1,
+                "olusturulma_tarihi": 1,
+        })
+
+        cursor, err := collection.Find(ctx, filter, findOptions)
+        if err != nil {
+                utils.SendErrorResponse(w, http.StatusInternalServerError, "Failed to fetch documents: "+err.Error())
+                return
+        }
+        defer cursor.Close(ctx)
+
+        var documents []SitemapDocument
+        if err := cursor.All(ctx, &documents); err != nil {
+                utils.SendErrorResponse(w, http.StatusInternalServerError, "Failed to decode documents: "+err.Error())
+                return
+        }
+
+        // Generate XML sitemap
+        w.Header().Set("Content-Type", "application/xml")
+        w.WriteHeader(http.StatusOK)
+
+        fmt.Fprint(w, `<?xml version="1.0" encoding="UTF-8"?>`)
+        fmt.Fprint(w, `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`)
+
+        // Add static pages
+        fmt.Fprintf(w, `<url><loc>%s/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>`, DOMAIN)
+        fmt.Fprintf(w, `<url><loc>%s/hakkinda</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>`, DOMAIN)
+        fmt.Fprintf(w, `<url><loc>%s/iletisim</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>`, DOMAIN)
+
+        // Add document pages
+        for _, doc := range documents {
+                if doc.URLSlug != "" {
+                        lastmod := doc.BelgeYayinTarihi
+                        if doc.OlusturulmaTarihi != "" {
+                                lastmod = doc.OlusturulmaTarihi
+                        }
+                        fmt.Fprintf(w, `<url><loc>%s/belge/%s</loc><lastmod>%s</lastmod><changefreq>monthly</changefreq><priority>0.9</priority></url>`, 
+                                DOMAIN, doc.URLSlug, lastmod)
+                }
+        }
+
+        fmt.Fprint(w, `</urlset>`)
 }
 
 // Helper function to create slug from institution name

@@ -93,6 +93,9 @@ func setupRoutes() *mux.Router {
         api.HandleFunc("/sitemap/institutions", handlers.GetSitemapInstitutions).Methods("GET", "OPTIONS")
         api.HandleFunc("/sitemap/documents", handlers.GetSitemapDocumentsByInstitution).Methods("GET", "OPTIONS")
         api.HandleFunc("/sitemap/all-documents", handlers.GetSitemapAllDocuments).Methods("GET", "OPTIONS")
+        
+        // XML Sitemap endpoint
+        router.HandleFunc("/sitemap.xml", handlers.GetSitemapXML).Methods("GET", "OPTIONS")
 
         // Search endpoints
         api.HandleFunc("/search", handlers.GlobalSearch).Methods("GET", "OPTIONS")
