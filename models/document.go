@@ -56,8 +56,11 @@ type DocumentSummary struct {
 
 // DocumentDetails represents the complete document with content
 type DocumentDetails struct {
-        Metadata DocumentMetadata `json:"metadata"`
-        Content  DocumentContent  `json:"content"`
+        Metadata      DocumentMetadata `json:"metadata"`
+        Content       DocumentContent  `json:"content"`
+        KurumAdi      string           `json:"kurum_adi"`
+        KurumLogo     string           `json:"kurum_logo"`
+        KurumAciklama string           `json:"kurum_aciklama"`
 }
 
 // Institution represents a unique institution

@@ -227,10 +227,18 @@ func GetDocumentBySlug(w http.ResponseWriter, r *http.Request) {
                 return
         }
 
-        // Combine metadata and content
+        // Get kurum info from cache using kurum_id from metadata
+        kurumAdi := utils.GetKurumAdiByID(metadata.KurumID)
+        kurumLogo := utils.GetKurumLogoByID(metadata.KurumID)
+        kurumAciklama := utils.GetKurumAciklamaByID(metadata.KurumID)
+
+        // Combine metadata and content with kurum info
         documentDetails := models.DocumentDetails{
-                Metadata: metadata,
-                Content:  content,
+                Metadata:      metadata,
+                Content:       content,
+                KurumAdi:      kurumAdi,
+                KurumLogo:     kurumLogo,
+                KurumAciklama: kurumAciklama,
         }
 
         response := models.APIResponse{
