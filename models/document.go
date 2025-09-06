@@ -8,7 +8,6 @@ import (
 type DocumentMetadata struct {
         ID                 primitive.ObjectID `bson:"_id" json:"id"`
         PdfAdi            string             `bson:"pdf_adi" json:"pdf_adi"`
-        KurumID           primitive.ObjectID `bson:"kurum_id" json:"kurum_id"`
         KurumAdi          string             `bson:"kurum_adi" json:"kurum_adi"`
         KurumLogo         string             `bson:"kurum_logo" json:"kurum_logo"`
         BelgeTuru         string             `bson:"belge_turu" json:"belge_turu"`
