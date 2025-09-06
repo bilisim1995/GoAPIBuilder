@@ -84,9 +84,10 @@ func GetInstitutions(w http.ResponseWriter, r *http.Request) {
         // Build institutions response with kurum data and document counts
         var institutions []models.Institution
         for _, kurum := range allKurumlar {
+                // Show all institutions from kurumlar table, even if no documents
                 count, exists := countMap[kurum.KurumID]
-                if !exists || count == 0 {
-                        continue // Skip institutions with no active documents
+                if !exists {
+                        count = 0 // Set count to 0 if no documents found
                 }
 
                 institution := models.Institution{
