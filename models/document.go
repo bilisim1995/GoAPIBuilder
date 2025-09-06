@@ -9,7 +9,7 @@ type Kurum struct {
         ID            primitive.ObjectID `bson:"_id" json:"kurum_id"`
         KurumAdi      string             `bson:"kurum_adi" json:"kurum_adi"`
         KurumLogo     string             `bson:"kurum_logo" json:"kurum_logo"`
-        KurumAciklama string             `bson:"kurum_aciklama" json:"kurum_aciklama"`
+        KurumAciklama string             `bson:"aciklama" json:"kurum_aciklama"`
 }
 
 // DocumentMetadata represents the metadata collection structure
