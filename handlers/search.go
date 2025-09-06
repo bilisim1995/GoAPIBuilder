@@ -151,25 +151,38 @@ func searchInMetadata(ctx context.Context, query string, institution string, lim
         // Create regex for case-insensitive search
         searchRegex := bson.M{"$regex": primitive.Regex{Pattern: query, Options: "i"}}
         
-        // Build base search conditions
+        // Build base search conditions (removed kurum_adi since it's now a reference)
         searchConditions := []bson.M{
                 {"pdf_adi": searchRegex},           // Search in title
                 {"aciklama": searchRegex},          // Search in description  
                 {"anahtar_kelimeler": searchRegex}, // Search in keywords
                 {"etiketler": searchRegex},         // Search in tags
-                {"kurum_adi": searchRegex},         // Search in institution name
         }
         
         // Build comprehensive search filter with optional institution filter
         var filter bson.M
         if institution != "" {
-                institutionRegex := bson.M{"$regex": primitive.Regex{Pattern: institution, Options: "i"}}
-                filter = bson.M{
-                        "status": "aktif",
-                        "$and": []bson.M{
-                                {"kurum_adi": institutionRegex},
-                                {"$or": searchConditions},
-                        },
+                // Find kurum_id by kurum_adi from cache
+                var kurumID string
+                allKurumlar := utils.GetAllKurumlar()
+                for _, kurum := range allKurumlar {
+                        if strings.Contains(strings.ToLower(kurum.KurumAdi), strings.ToLower(institution)) {
+                                kurumID = kurum.KurumID
+                                break
+                        }
+                }
+                
+                if kurumID != "" {
+                        filter = bson.M{
+                                "status": "aktif",
+                                "$and": []bson.M{
+                                        {"kurum_id": kurumID},
+                                        {"$or": searchConditions},
+                                },
+                        }
+                } else {
+                        // Institution not found, return empty filter
+                        filter = bson.M{"status": "aktif", "_id": bson.M{"$exists": false}}
                 }
         } else {
                 filter = bson.M{
@@ -195,11 +208,15 @@ func searchInMetadata(ctx context.Context, query string, institution string, lim
 
         var results []SearchResult
         for _, doc := range documents {
+                // Get kurum info from cache
+                kurumAdi := utils.GetKurumAdiByID(doc.KurumID)
+                kurumLogo := utils.GetKurumLogoByID(doc.KurumID)
+
                 result := SearchResult{
                         ID:                   doc.ID.Hex(),
                         PdfAdi:               doc.PdfAdi,
-                        KurumAdi:             doc.KurumAdi,
-                        KurumLogo:            doc.KurumLogo,
+                        KurumAdi:             kurumAdi,
+                        KurumLogo:            kurumLogo,
                         BelgeTuru:            doc.BelgeTuru,
                         BelgeDurumu:          doc.BelgeDurumu,
                         BelgeYayinTarihi:     doc.BelgeYayinTarihi,
@@ -263,11 +280,15 @@ func searchInContent(ctx context.Context, query string, institution string, limi
                         continue // Skip if metadata not found or not active
                 }
 
+                // Get kurum info from cache
+                kurumAdi := utils.GetKurumAdiByID(metadata.KurumID)
+                kurumLogo := utils.GetKurumLogoByID(metadata.KurumID)
+
                 result := SearchResult{
                         ID:                   metadata.ID.Hex(),
                         PdfAdi:               metadata.PdfAdi,
-                        KurumAdi:             metadata.KurumAdi,
-                        KurumLogo:            metadata.KurumLogo,
+                        KurumAdi:             kurumAdi,
+                        KurumLogo:            kurumLogo,
                         BelgeTuru:            metadata.BelgeTuru,
                         BelgeDurumu:          metadata.BelgeDurumu,
                         BelgeYayinTarihi:     metadata.BelgeYayinTarihi,
@@ -332,8 +353,9 @@ func calculateMetadataRelevance(doc models.DocumentMetadata, query string) float
                 score += 10.0
         }
         
-        // Institution match
-        if strings.Contains(strings.ToLower(doc.KurumAdi), queryLower) {
+        // Institution match - get from cache
+        kurumAdi := utils.GetKurumAdiByID(doc.KurumID)
+        if strings.Contains(strings.ToLower(kurumAdi), queryLower) {
                 score += 5.0
         }
         
@@ -380,7 +402,9 @@ func determineMatchType(doc models.DocumentMetadata, query string) string {
         if strings.Contains(strings.ToLower(doc.PdfAdi), queryLower) {
                 return "title"
         }
-        if strings.Contains(strings.ToLower(doc.KurumAdi), queryLower) {
+        // Check institution name from cache
+        kurumAdi := utils.GetKurumAdiByID(doc.KurumID)
+        if strings.Contains(strings.ToLower(kurumAdi), queryLower) {
                 return "institution"
         }
         if strings.Contains(strings.ToLower(doc.Etiketler), queryLower) {
@@ -488,8 +512,9 @@ func countMatches(doc models.DocumentMetadata, query string) int {
         // Count in title
         count += strings.Count(strings.ToLower(doc.PdfAdi), queryLower)
         
-        // Count in institution name
-        count += strings.Count(strings.ToLower(doc.KurumAdi), queryLower)
+        // Count in institution name from cache
+        kurumAdi := utils.GetKurumAdiByID(doc.KurumID)
+        count += strings.Count(strings.ToLower(kurumAdi), queryLower)
         
         // Count in tags
         count += strings.Count(strings.ToLower(doc.Etiketler), queryLower)
