@@ -57,25 +57,29 @@ func GetDocumentsByInstitution(w http.ResponseWriter, r *http.Request) {
 
         collection := config.GetMetadataCollection(mongoClient)
 
-        // Find kurum_id by kurum_adi first
+        // Find kurum_id by kurum_adi first (case insensitive match)
         var kurumID string
         allKurumlar := utils.GetAllKurumlar()
         for _, kurum := range allKurumlar {
-                if kurum.KurumAdi == kurumAdi {
+                if strings.EqualFold(kurum.KurumAdi, kurumAdi) {
                         kurumID = kurum.KurumID
                         break
                 }
         }
         
-        if kurumID == "" {
-                utils.SendErrorResponse(w, http.StatusNotFound, "Institution not found: "+kurumAdi)
-                return
-        }
-
-        // Build filter with kurum_id
-        filter := bson.M{
-                "kurum_id": kurumID,
-                "status":   "aktif",
+        // Build filter - if kurum_id is empty, search by kurum_adi as fallback
+        var filter bson.M
+        if kurumID != "" {
+                filter = bson.M{
+                        "kurum_id": kurumID,
+                        "status":   "aktif",
+                }
+        } else {
+                // Fallback: search by kurum_adi if kurum_id is empty in cache
+                filter = bson.M{
+                        "kurum_adi": kurumAdi,
+                        "status":    "aktif",
+                }
         }
 
         // Additional filters
@@ -321,25 +325,29 @@ func GetDocumentsByInstitutionSlug(w http.ResponseWriter, r *http.Request) {
 
         collection := config.GetMetadataCollection(mongoClient)
 
-        // Find kurum_id by kurum_adi first
+        // Find kurum_id by kurum_adi first (case insensitive match)
         var kurumID string
         allKurumlar := utils.GetAllKurumlar()
         for _, kurum := range allKurumlar {
-                if kurum.KurumAdi == kurumAdi {
+                if strings.EqualFold(kurum.KurumAdi, kurumAdi) {
                         kurumID = kurum.KurumID
                         break
                 }
         }
         
-        if kurumID == "" {
-                utils.SendErrorResponse(w, http.StatusNotFound, "Institution not found: "+kurumAdi)
-                return
-        }
-
-        // Build filter with kurum_id
-        filter := bson.M{
-                "kurum_id": kurumID,
-                "status":   "aktif",
+        // Build filter - if kurum_id is empty, search by kurum_adi as fallback
+        var filter bson.M
+        if kurumID != "" {
+                filter = bson.M{
+                        "kurum_id": kurumID,
+                        "status":   "aktif",
+                }
+        } else {
+                // Fallback: search by kurum_adi if kurum_id is empty in cache
+                filter = bson.M{
+                        "kurum_adi": kurumAdi,
+                        "status":    "aktif",
+                }
         }
 
         // Additional filters from query parameters
