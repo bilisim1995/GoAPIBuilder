@@ -101,8 +101,7 @@ func GetDocumentsByInstitution(w http.ResponseWriter, r *http.Request) {
         // Only select necessary fields for summary
         findOptions.SetProjection(bson.M{
                 "_id":                1,
-                "kurum_adi":          1,
-                "kurum_logo":         1,
+                "kurum_id":           1,  // New field for institution reference
                 "pdf_adi":            1,
                 "etiketler":          1,
                 "belge_yayin_tarihi": 1,
@@ -136,11 +135,13 @@ func GetDocumentsByInstitution(w http.ResponseWriter, r *http.Request) {
                 // Get kurum info from cache
                 kurumAdi := utils.GetKurumAdiByID(doc.KurumID)
                 kurumLogo := utils.GetKurumLogoByID(doc.KurumID)
+                kurumAciklama := utils.GetKurumAciklamaByID(doc.KurumID)
 
                 summary := models.DocumentSummary{
                         ID:               doc.ID.Hex(),
                         KurumAdi:         kurumAdi,
                         KurumLogo:        kurumLogo,
+                        KurumAciklama:    kurumAciklama,
                         PdfAdi:           doc.PdfAdi,
                         Etiketler:        doc.Etiketler,
                         BelgeYayinTarihi: doc.BelgeYayinTarihi,
@@ -346,8 +347,7 @@ func GetDocumentsByInstitutionSlug(w http.ResponseWriter, r *http.Request) {
         // Only select necessary fields for summary
         findOptions.SetProjection(bson.M{
                 "_id":                1,
-                "kurum_adi":          1,
-                "kurum_logo":         1,
+                "kurum_id":           1,  // New field for institution reference
                 "pdf_adi":            1,
                 "etiketler":          1,
                 "belge_yayin_tarihi": 1,
@@ -381,11 +381,13 @@ func GetDocumentsByInstitutionSlug(w http.ResponseWriter, r *http.Request) {
                 // Get kurum info from cache
                 kurumAdi := utils.GetKurumAdiByID(doc.KurumID)
                 kurumLogo := utils.GetKurumLogoByID(doc.KurumID)
+                kurumAciklama := utils.GetKurumAciklamaByID(doc.KurumID)
 
                 summary := models.DocumentSummary{
                         ID:               doc.ID.Hex(),
                         KurumAdi:         kurumAdi,
                         KurumLogo:        kurumLogo,
+                        KurumAciklama:    kurumAciklama,
                         PdfAdi:           doc.PdfAdi,
                         Etiketler:        doc.Etiketler,
                         BelgeYayinTarihi: doc.BelgeYayinTarihi,

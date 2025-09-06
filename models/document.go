@@ -6,9 +6,10 @@ import (
 
 // Kurum represents institution data from kurumlar collection
 type Kurum struct {
-        ID        primitive.ObjectID `bson:"_id" json:"kurum_id"`
-        KurumAdi  string             `bson:"kurum_adi" json:"kurum_adi"`
-        KurumLogo string             `bson:"kurum_logo" json:"kurum_logo"`
+        ID            primitive.ObjectID `bson:"_id" json:"kurum_id"`
+        KurumAdi      string             `bson:"kurum_adi" json:"kurum_adi"`
+        KurumLogo     string             `bson:"kurum_logo" json:"kurum_logo"`
+        KurumAciklama string             `bson:"kurum_aciklama" json:"kurum_aciklama"`
 }
 
 // DocumentMetadata represents the metadata collection structure
@@ -44,6 +45,7 @@ type DocumentSummary struct {
         ID               string `json:"id"`
         KurumAdi         string `json:"kurum_adi"`
         KurumLogo        string `json:"kurum_logo"`
+        KurumAciklama    string `json:"kurum_aciklama"`
         PdfAdi           string `json:"pdf_adi"`
         Etiketler        string `json:"etiketler"`
         BelgeYayinTarihi string `json:"belge_yayin_tarihi"`

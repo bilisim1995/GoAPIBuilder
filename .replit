@@ -1,4 +1,4 @@
-modules = ["go"]
+modules = ["go", "postgresql-16"]
 [agent]
 expertMode = true
 

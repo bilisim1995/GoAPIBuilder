@@ -75,6 +75,14 @@ func GetKurumLogoByID(kurumID string) string {
         return "" // empty logo if not found
 }
 
+// GetKurumAciklamaByID returns kurum aciklama from cache by kurum_id
+func GetKurumAciklamaByID(kurumID string) string {
+        if kurum, exists := GetKurumByID(kurumID); exists {
+                return kurum.KurumAciklama
+        }
+        return ""
+}
+
 // GetAllKurumlar returns all institutions from cache
 func GetAllKurumlar() []models.Kurum {
         cache.mutex.RLock()
