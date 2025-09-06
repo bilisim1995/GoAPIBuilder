@@ -91,6 +91,7 @@ func GetInstitutions(w http.ResponseWriter, r *http.Request) {
                 }
 
                 institution := models.Institution{
+                        KurumID:   kurum.KurumID,
                         KurumAdi:  kurum.KurumAdi,
                         KurumLogo: kurum.KurumLogo,
                         Count:     count,

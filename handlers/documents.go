@@ -30,9 +30,9 @@ func GetDocumentsByInstitution(w http.ResponseWriter, r *http.Request) {
         defer cancel()
 
         // Get query parameters
-        kurumAdi := r.URL.Query().Get("kurum_adi")
-        if kurumAdi == "" {
-                utils.SendErrorResponse(w, http.StatusBadRequest, "kurum_adi parameter is required")
+        kurumID := r.URL.Query().Get("kurum_id")
+        if kurumID == "" {
+                utils.SendErrorResponse(w, http.StatusBadRequest, "kurum_id parameter is required")
                 return
         }
 
@@ -57,29 +57,10 @@ func GetDocumentsByInstitution(w http.ResponseWriter, r *http.Request) {
 
         collection := config.GetMetadataCollection(mongoClient)
 
-        // Find kurum_id by kurum_adi first (case insensitive match)
-        var kurumID string
-        allKurumlar := utils.GetAllKurumlar()
-        for _, kurum := range allKurumlar {
-                if strings.EqualFold(kurum.KurumAdi, kurumAdi) {
-                        kurumID = kurum.KurumID
-                        break
-                }
-        }
-        
-        // Build filter - if kurum_id is empty, search by kurum_adi as fallback
-        var filter bson.M
-        if kurumID != "" {
-                filter = bson.M{
-                        "kurum_id": kurumID,
-                        "status":   "aktif",
-                }
-        } else {
-                // Fallback: search by kurum_adi if kurum_id is empty in cache
-                filter = bson.M{
-                        "kurum_adi": kurumAdi,
-                        "status":    "aktif",
-                }
+        // Build filter directly with kurum_id
+        filter := bson.M{
+                "kurum_id": kurumID,
+                "status":   "aktif",
         }
 
         // Additional filters
@@ -264,6 +245,7 @@ func GetDocumentBySlug(w http.ResponseWriter, r *http.Request) {
 
 // GetDocumentsByInstitutionSlug returns documents filtered by institution using URL slug
 func GetDocumentsByInstitutionSlug(w http.ResponseWriter, r *http.Request) {
+        // This endpoint uses kurumSlugID variable instead of kurumID
         // Handle CORS preflight
         if r.Method == "OPTIONS" {
                 w.WriteHeader(http.StatusOK)
@@ -325,29 +307,10 @@ func GetDocumentsByInstitutionSlug(w http.ResponseWriter, r *http.Request) {
 
         collection := config.GetMetadataCollection(mongoClient)
 
-        // Find kurum_id by kurum_adi first (case insensitive match)
-        var kurumID string
-        allKurumlar := utils.GetAllKurumlar()
-        for _, kurum := range allKurumlar {
-                if strings.EqualFold(kurum.KurumAdi, kurumAdi) {
-                        kurumID = kurum.KurumID
-                        break
-                }
-        }
-        
-        // Build filter - if kurum_id is empty, search by kurum_adi as fallback
-        var filter bson.M
-        if kurumID != "" {
-                filter = bson.M{
-                        "kurum_id": kurumID,
-                        "status":   "aktif",
-                }
-        } else {
-                // Fallback: search by kurum_adi if kurum_id is empty in cache
-                filter = bson.M{
-                        "kurum_adi": kurumAdi,
-                        "status":    "aktif",
-                }
+        // Build filter directly with kurum_id
+        filter := bson.M{
+                "kurum_id": kurumID,
+                "status":   "aktif",
         }
 
         // Additional filters from query parameters

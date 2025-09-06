@@ -61,7 +61,8 @@ type DocumentDetails struct {
 
 // Institution represents a unique institution
 type Institution struct {
-        KurumAdi  string `json:"kurum_adi" bson:"_id"`
+        KurumID   string `json:"kurum_id" bson:"kurum_id"`
+        KurumAdi  string `json:"kurum_adi" bson:"kurum_adi"`
         KurumLogo string `json:"kurum_logo" bson:"kurum_logo"`
         Count     int32  `json:"count" bson:"count"`
 }
