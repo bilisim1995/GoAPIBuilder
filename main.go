@@ -2,7 +2,6 @@ package main
 
 import (
         "context"
-        "encoding/json"
         "fmt"
         "log"
         "net/http"
@@ -105,7 +104,6 @@ func setupRoutes() *mux.Router {
                 w.WriteHeader(http.StatusOK)
                 fmt.Fprint(w, `{"status":"healthy","timestamp":"` + time.Now().UTC().Format(time.RFC3339) + `"}`)
         }).Methods("GET", "OPTIONS")
-        
 
         // Root endpoint - API documentation
         router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
