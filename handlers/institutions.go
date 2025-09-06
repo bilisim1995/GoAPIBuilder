@@ -74,7 +74,10 @@ func GetInstitutions(w http.ResponseWriter, r *http.Request) {
                 Count int32  `bson:"count"`
         }
         
-        for cursor.Next(ctx, &countResult) {
+        for cursor.Next(ctx) {
+                if err := cursor.Decode(&countResult); err != nil {
+                        continue
+                }
                 countMap[countResult.ID] = countResult.Count
         }
 

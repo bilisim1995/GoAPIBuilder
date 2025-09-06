@@ -57,10 +57,25 @@ func GetDocumentsByInstitution(w http.ResponseWriter, r *http.Request) {
 
         collection := config.GetMetadataCollection(mongoClient)
 
-        // Build filter
+        // Find kurum_id by kurum_adi first
+        var kurumID string
+        allKurumlar := utils.GetAllKurumlar()
+        for _, kurum := range allKurumlar {
+                if kurum.KurumAdi == kurumAdi {
+                        kurumID = kurum.KurumID
+                        break
+                }
+        }
+        
+        if kurumID == "" {
+                utils.SendErrorResponse(w, http.StatusNotFound, "Institution not found: "+kurumAdi)
+                return
+        }
+
+        // Build filter with kurum_id
         filter := bson.M{
-                "kurum_adi": kurumAdi,
-                "status":    "aktif",
+                "kurum_id": kurumID,
+                "status":   "aktif",
         }
 
         // Additional filters
@@ -133,10 +148,14 @@ func GetDocumentsByInstitution(w http.ResponseWriter, r *http.Request) {
                         aciklama = aciklama[:200] + "..."
                 }
 
+                // Get kurum info from cache
+                kurumAdi := utils.GetKurumAdiByID(doc.KurumID)
+                kurumLogo := utils.GetKurumLogoByID(doc.KurumID)
+
                 summary := models.DocumentSummary{
                         ID:               doc.ID.Hex(),
-                        KurumAdi:         doc.KurumAdi,
-                        KurumLogo:        doc.KurumLogo,
+                        KurumAdi:         kurumAdi,
+                        KurumLogo:        kurumLogo,
                         PdfAdi:           doc.PdfAdi,
                         Etiketler:        doc.Etiketler,
                         BelgeYayinTarihi: doc.BelgeYayinTarihi,
@@ -302,10 +321,25 @@ func GetDocumentsByInstitutionSlug(w http.ResponseWriter, r *http.Request) {
 
         collection := config.GetMetadataCollection(mongoClient)
 
-        // Build filter
+        // Find kurum_id by kurum_adi first
+        var kurumID string
+        allKurumlar := utils.GetAllKurumlar()
+        for _, kurum := range allKurumlar {
+                if kurum.KurumAdi == kurumAdi {
+                        kurumID = kurum.KurumID
+                        break
+                }
+        }
+        
+        if kurumID == "" {
+                utils.SendErrorResponse(w, http.StatusNotFound, "Institution not found: "+kurumAdi)
+                return
+        }
+
+        // Build filter with kurum_id
         filter := bson.M{
-                "kurum_adi": kurumAdi,
-                "status":    "aktif",
+                "kurum_id": kurumID,
+                "status":   "aktif",
         }
 
         // Additional filters from query parameters
@@ -378,10 +412,14 @@ func GetDocumentsByInstitutionSlug(w http.ResponseWriter, r *http.Request) {
                         aciklama = aciklama[:200] + "..."
                 }
 
+                // Get kurum info from cache
+                kurumAdi := utils.GetKurumAdiByID(doc.KurumID)
+                kurumLogo := utils.GetKurumLogoByID(doc.KurumID)
+
                 summary := models.DocumentSummary{
                         ID:               doc.ID.Hex(),
-                        KurumAdi:         doc.KurumAdi,
-                        KurumLogo:        doc.KurumLogo,
+                        KurumAdi:         kurumAdi,
+                        KurumLogo:        kurumLogo,
                         PdfAdi:           doc.PdfAdi,
                         Etiketler:        doc.Etiketler,
                         BelgeYayinTarihi: doc.BelgeYayinTarihi,

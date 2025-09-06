@@ -15,6 +15,7 @@ import (
         "legal-documents-api/config"
         "legal-documents-api/handlers"
         "legal-documents-api/middleware"
+        "legal-documents-api/utils"
 )
 
 var mongoClient *mongo.Client
@@ -50,6 +51,11 @@ func main() {
 
         // Initialize handlers with MongoDB client
         handlers.InitHandlers(mongoClient)
+
+        // Load kurumlar data into cache
+        if err := utils.LoadKurumlarToCache(mongoClient); err != nil {
+                log.Printf("Warning: Failed to load kurumlar cache: %v", err)
+        }
 
         // Setup routes
         router := setupRoutes()
