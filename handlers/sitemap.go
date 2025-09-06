@@ -46,7 +46,7 @@ func GetSitemapInstitutions(w http.ResponseWriter, r *http.Request) {
 
         collection := config.GetMetadataCollection(mongoClient)
 
-        // Aggregation pipeline to get unique institutions with document counts
+        // Aggregation pipeline to get unique institutions with document counts by kurum_id
         pipeline := []bson.M{
                 {
                         "$match": bson.M{
@@ -55,7 +55,7 @@ func GetSitemapInstitutions(w http.ResponseWriter, r *http.Request) {
                 },
                 {
                         "$group": bson.M{
-                                "_id":   "$kurum_adi",
+                                "_id":   "$kurum_id", // Group by kurum_id instead of kurum_adi
                                 "count": bson.M{"$sum": 1},
                         },
                 },
@@ -73,17 +73,26 @@ func GetSitemapInstitutions(w http.ResponseWriter, r *http.Request) {
 
         var institutions []SitemapInstitution
         for cursor.Next(ctx) {
-                var inst models.Institution
-                if err := cursor.Decode(&inst); err != nil {
+                var result struct {
+                        ID    string `bson:"_id"`
+                        Count int32  `bson:"count"`
+                }
+                if err := cursor.Decode(&result); err != nil {
                         continue
                 }
                 
+                // Get kurum info from cache using kurum_id
+                kurumAdi := utils.GetKurumAdiByID(result.ID)
+                if kurumAdi == "Bilinmeyen Kurum" {
+                        continue // Skip unknown institutions
+                }
+                
                 // Create slug from institution name
-                slug := createSlugFromName(inst.KurumAdi)
+                slug := createSlugFromName(kurumAdi)
                 
                 sitemapInst := SitemapInstitution{
-                        KurumAdi: inst.KurumAdi,
-                        Count:    inst.Count,
+                        KurumAdi: kurumAdi,
+                        Count:    result.Count,
                         Slug:     slug,
                 }
                 institutions = append(institutions, sitemapInst)
@@ -108,9 +117,9 @@ func GetSitemapDocumentsByInstitution(w http.ResponseWriter, r *http.Request) {
                 return
         }
 
-        kurumAdi := r.URL.Query().Get("kurum_adi")
-        if kurumAdi == "" {
-                utils.SendErrorResponse(w, http.StatusBadRequest, "kurum_adi parameter is required")
+        kurumID := r.URL.Query().Get("kurum_id")
+        if kurumID == "" {
+                utils.SendErrorResponse(w, http.StatusBadRequest, "kurum_id parameter is required")
                 return
         }
 
@@ -120,18 +129,18 @@ func GetSitemapDocumentsByInstitution(w http.ResponseWriter, r *http.Request) {
         collection := config.GetMetadataCollection(mongoClient)
 
         filter := bson.M{
-                "kurum_adi": kurumAdi,
-                "status":    "aktif",
+                "kurum_id": kurumID,
+                "status":   "aktif",
         }
 
         findOptions := options.Find()
         findOptions.SetSort(bson.M{"belge_yayin_tarihi": -1})
         findOptions.SetProjection(bson.M{
-                "url_slug":              1,
-                "pdf_adi":               1,
-                "kurum_adi":             1,
-                "belge_yayin_tarihi":    1,
-                "olusturulma_tarihi":    1,
+                "url_slug":           1,
+                "pdf_adi":            1,
+                "kurum_id":           1,
+                "belge_yayin_tarihi": 1,
+                "olusturulma_tarihi": 1,
         })
 
         cursor, err := collection.Find(ctx, filter, findOptions)
@@ -141,17 +150,32 @@ func GetSitemapDocumentsByInstitution(w http.ResponseWriter, r *http.Request) {
         }
         defer cursor.Close(ctx)
 
-        var documents []SitemapDocument
-        if err := cursor.All(ctx, &documents); err != nil {
+        var rawDocuments []models.DocumentMetadata
+        if err := cursor.All(ctx, &rawDocuments); err != nil {
                 utils.SendErrorResponse(w, http.StatusInternalServerError, "Failed to decode documents: "+err.Error())
                 return
+        }
+
+        // Convert to sitemap format with kurum_adi from cache
+        var documents []SitemapDocument
+        for _, doc := range rawDocuments {
+                kurumAdi := utils.GetKurumAdiByID(doc.KurumID)
+                
+                sitemapDoc := SitemapDocument{
+                        URLSlug:           doc.URLSlug,
+                        PdfAdi:            doc.PdfAdi,
+                        KurumAdi:          kurumAdi,
+                        BelgeYayinTarihi:  doc.BelgeYayinTarihi,
+                        OlusturulmaTarihi: doc.OlusturulmaTarihi,
+                }
+                documents = append(documents, sitemapDoc)
         }
 
         response := models.APIResponse{
                 Success: true,
                 Data:    documents,
                 Count:   len(documents),
-                Message: "Sitemap documents fetched successfully for: " + kurumAdi,
+                Message: "Sitemap documents fetched successfully for kurum_id: " + kurumID,
         }
 
         w.Header().Set("Content-Type", "application/json")
@@ -178,11 +202,11 @@ func GetSitemapAllDocuments(w http.ResponseWriter, r *http.Request) {
         findOptions := options.Find()
         findOptions.SetSort(bson.M{"belge_yayin_tarihi": -1})
         findOptions.SetProjection(bson.M{
-                "url_slug":              1,
-                "pdf_adi":               1,
-                "kurum_adi":             1,
-                "belge_yayin_tarihi":    1,
-                "olusturulma_tarihi":    1,
+                "url_slug":           1,
+                "pdf_adi":            1,
+                "kurum_id":           1, // Use kurum_id instead of kurum_adi
+                "belge_yayin_tarihi": 1,
+                "olusturulma_tarihi": 1,
         })
 
         cursor, err := collection.Find(ctx, filter, findOptions)
@@ -192,10 +216,25 @@ func GetSitemapAllDocuments(w http.ResponseWriter, r *http.Request) {
         }
         defer cursor.Close(ctx)
 
-        var documents []SitemapDocument
-        if err := cursor.All(ctx, &documents); err != nil {
+        var rawDocuments []models.DocumentMetadata
+        if err := cursor.All(ctx, &rawDocuments); err != nil {
                 utils.SendErrorResponse(w, http.StatusInternalServerError, "Failed to decode documents: "+err.Error())
                 return
+        }
+
+        // Convert to sitemap format with kurum_adi from cache
+        var documents []SitemapDocument
+        for _, doc := range rawDocuments {
+                kurumAdi := utils.GetKurumAdiByID(doc.KurumID)
+                
+                sitemapDoc := SitemapDocument{
+                        URLSlug:           doc.URLSlug,
+                        PdfAdi:            doc.PdfAdi,
+                        KurumAdi:          kurumAdi,
+                        BelgeYayinTarihi:  doc.BelgeYayinTarihi,
+                        OlusturulmaTarihi: doc.OlusturulmaTarihi,
+                }
+                documents = append(documents, sitemapDoc)
         }
 
         response := models.APIResponse{
