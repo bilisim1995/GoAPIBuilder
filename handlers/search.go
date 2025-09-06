@@ -22,6 +22,7 @@ type SearchResult struct {
         ID                   string  `json:"id"`
         PdfAdi               string  `json:"pdf_adi"`
         KurumAdi             string  `json:"kurum_adi"`
+        KurumLogo            string  `json:"kurum_logo"`
         BelgeTuru            string  `json:"belge_turu"`
         BelgeDurumu          string  `json:"belge_durumu"`
         BelgeYayinTarihi     string  `json:"belge_yayin_tarihi"`
@@ -198,6 +199,7 @@ func searchInMetadata(ctx context.Context, query string, institution string, lim
                         ID:                   doc.ID.Hex(),
                         PdfAdi:               doc.PdfAdi,
                         KurumAdi:             doc.KurumAdi,
+                        KurumLogo:            doc.KurumLogo,
                         BelgeTuru:            doc.BelgeTuru,
                         BelgeDurumu:          doc.BelgeDurumu,
                         BelgeYayinTarihi:     doc.BelgeYayinTarihi,
@@ -265,6 +267,7 @@ func searchInContent(ctx context.Context, query string, institution string, limi
                         ID:                   metadata.ID.Hex(),
                         PdfAdi:               metadata.PdfAdi,
                         KurumAdi:             metadata.KurumAdi,
+                        KurumLogo:            metadata.KurumLogo,
                         BelgeTuru:            metadata.BelgeTuru,
                         BelgeDurumu:          metadata.BelgeDurumu,
                         BelgeYayinTarihi:     metadata.BelgeYayinTarihi,

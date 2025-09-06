@@ -102,6 +102,7 @@ func GetDocumentsByInstitution(w http.ResponseWriter, r *http.Request) {
         findOptions.SetProjection(bson.M{
                 "_id":                1,
                 "kurum_adi":          1,
+                "kurum_logo":         1,
                 "pdf_adi":            1,
                 "etiketler":          1,
                 "belge_yayin_tarihi": 1,
@@ -135,6 +136,7 @@ func GetDocumentsByInstitution(w http.ResponseWriter, r *http.Request) {
                 summary := models.DocumentSummary{
                         ID:               doc.ID.Hex(),
                         KurumAdi:         doc.KurumAdi,
+                        KurumLogo:        doc.KurumLogo,
                         PdfAdi:           doc.PdfAdi,
                         Etiketler:        doc.Etiketler,
                         BelgeYayinTarihi: doc.BelgeYayinTarihi,
@@ -345,6 +347,7 @@ func GetDocumentsByInstitutionSlug(w http.ResponseWriter, r *http.Request) {
         findOptions.SetProjection(bson.M{
                 "_id":                1,
                 "kurum_adi":          1,
+                "kurum_logo":         1,
                 "pdf_adi":            1,
                 "etiketler":          1,
                 "belge_yayin_tarihi": 1,
@@ -378,6 +381,7 @@ func GetDocumentsByInstitutionSlug(w http.ResponseWriter, r *http.Request) {
                 summary := models.DocumentSummary{
                         ID:               doc.ID.Hex(),
                         KurumAdi:         doc.KurumAdi,
+                        KurumLogo:        doc.KurumLogo,
                         PdfAdi:           doc.PdfAdi,
                         Etiketler:        doc.Etiketler,
                         BelgeYayinTarihi: doc.BelgeYayinTarihi,

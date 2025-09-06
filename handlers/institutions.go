@@ -34,7 +34,7 @@ func GetInstitutions(w http.ResponseWriter, r *http.Request) {
 
         collection := config.GetMetadataCollection(mongoClient)
 
-        // Aggregation pipeline to get unique institutions with document counts
+        // Aggregation pipeline to get unique institutions with document counts and logos
         pipeline := []bson.M{
                 {
                         "$match": bson.M{
@@ -43,8 +43,9 @@ func GetInstitutions(w http.ResponseWriter, r *http.Request) {
                 },
                 {
                         "$group": bson.M{
-                                "_id":   "$kurum_adi",
-                                "count": bson.M{"$sum": 1},
+                                "_id":        "$kurum_adi",
+                                "kurum_logo": bson.M{"$first": "$kurum_logo"}, // Get the logo from first document
+                                "count":      bson.M{"$sum": 1},
                         },
                 },
                 {

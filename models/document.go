@@ -9,6 +9,7 @@ type DocumentMetadata struct {
         ID                 primitive.ObjectID `bson:"_id" json:"id"`
         PdfAdi            string             `bson:"pdf_adi" json:"pdf_adi"`
         KurumAdi          string             `bson:"kurum_adi" json:"kurum_adi"`
+        KurumLogo         string             `bson:"kurum_logo" json:"kurum_logo"`
         BelgeTuru         string             `bson:"belge_turu" json:"belge_turu"`
         BelgeDurumu       string             `bson:"belge_durumu" json:"belge_durumu"`
         BelgeYayinTarihi  string             `bson:"belge_yayin_tarihi" json:"belge_yayin_tarihi"`
@@ -36,6 +37,7 @@ type DocumentContent struct {
 type DocumentSummary struct {
         ID               string `json:"id"`
         KurumAdi         string `json:"kurum_adi"`
+        KurumLogo        string `json:"kurum_logo"`
         PdfAdi           string `json:"pdf_adi"`
         Etiketler        string `json:"etiketler"`
         BelgeYayinTarihi string `json:"belge_yayin_tarihi"`
@@ -52,8 +54,9 @@ type DocumentDetails struct {
 
 // Institution represents a unique institution
 type Institution struct {
-        KurumAdi string `json:"kurum_adi" bson:"_id"`
-        Count    int32  `json:"count" bson:"count"`
+        KurumAdi  string `json:"kurum_adi" bson:"_id"`
+        KurumLogo string `json:"kurum_logo" bson:"kurum_logo"`
+        Count     int32  `json:"count" bson:"count"`
 }
 
 // APIResponse represents a standard API response structure
