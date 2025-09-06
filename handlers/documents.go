@@ -260,27 +260,22 @@ func GetDocumentsByInstitutionSlug(w http.ResponseWriter, r *http.Request) {
                 return
         }
 
-        // Convert slug back to kurum_adi (simple conversion)
-        kurumAdi := strings.ReplaceAll(kurumSlug, "-", " ")
-        kurumAdi = strings.Title(strings.ToLower(kurumAdi))
-        
-        // Handle special cases for proper Turkish capitalization
-        kurumAdi = strings.ReplaceAll(kurumAdi, "Güvenlik", "Güvenlik")
-        kurumAdi = strings.ReplaceAll(kurumAdi, "Sosyal", "Sosyal")
-        kurumAdi = strings.ReplaceAll(kurumAdi, "Kurumu", "Kurumu")
-        
-        // If still not matching, try direct mapping
-        slugToName := map[string]string{
-                "sosyal-güvenlik-kurumu": "Sosyal Güvenlik Kurumu",
-                "sosyal-guvenlik-kurumu": "Sosyal Güvenlik Kurumu", 
-                "maliye-bakanlığı": "Maliye Bakanlığı",
-                "maliye-bakanligi": "Maliye Bakanlığı",
-                "içişleri-bakanlığı": "İçişleri Bakanlığı",
-                "icisleri-bakanligi": "İçişleri Bakanlığı",
+        // Find kurum_id by matching slug with kurum names
+        var kurumID string
+        allKurumlar := utils.GetAllKurumlar()
+        for _, kurum := range allKurumlar {
+                // Match by slug or name variations
+                kurumSlugNormalized := strings.ReplaceAll(strings.ToLower(kurum.KurumAdi), " ", "-")
+                if strings.EqualFold(kurumSlugNormalized, kurumSlug) || 
+                   strings.EqualFold(kurum.KurumAdi, kurumSlug) {
+                        kurumID = kurum.KurumID
+                        break
+                }
         }
         
-        if mappedName, exists := slugToName[kurumSlug]; exists {
-                kurumAdi = mappedName
+        if kurumID == "" {
+                utils.SendErrorResponse(w, http.StatusNotFound, "Institution not found: "+kurumSlug)
+                return
         }
 
         ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -407,7 +402,7 @@ func GetDocumentsByInstitutionSlug(w http.ResponseWriter, r *http.Request) {
                         Success: true,
                         Data:    []models.DocumentSummary{},
                         Count:   0,
-                        Message: "No documents found for institution: " + kurumAdi + " (tried slug: " + kurumSlug + ")",
+                        Message: "No documents found for institution slug: " + kurumSlug,
                 }
                 w.Header().Set("Content-Type", "application/json")
                 w.WriteHeader(http.StatusOK)
@@ -420,7 +415,7 @@ func GetDocumentsByInstitutionSlug(w http.ResponseWriter, r *http.Request) {
                 Success: true,
                 Data:    summaries,
                 Count:   len(summaries),
-                Message: "Documents fetched successfully for: " + kurumAdi,
+                Message: "Documents fetched successfully",
         }
 
         // Add pagination metadata in headers
