@@ -99,10 +99,24 @@ func getSuggestions(ctx context.Context, query string, institution string, limit
         // Build base filter
         baseFilter := bson.M{"status": "aktif"}
         
-        // Add institution filter if specified
+        // Add institution filter if specified (using kurum_id from cache)
         if institution != "" {
-                institutionRegex := bson.M{"$regex": primitive.Regex{Pattern: institution, Options: "i"}}
-                baseFilter["kurum_adi"] = institutionRegex
+                // Find kurum_id by kurum_adi from cache
+                var kurumID string
+                allKurumlar := utils.GetAllKurumlar()
+                for _, kurum := range allKurumlar {
+                        if strings.Contains(strings.ToLower(kurum.KurumAdi), strings.ToLower(institution)) {
+                                kurumID = kurum.ID.Hex()
+                                break
+                        }
+                }
+                
+                if kurumID != "" {
+                        baseFilter["kurum_id"] = kurumID
+                } else {
+                        // Institution not found, return empty filter to get no results
+                        baseFilter["_id"] = bson.M{"$exists": false}
+                }
         }
 
         // Map to store unique suggestions with their counts
@@ -138,14 +152,35 @@ func getSuggestions(ctx context.Context, query string, institution string, limit
                 return nil, err
         }
 
-        // Search in institution names
-        institutionFilter := bson.M{"kurum_adi": searchRegex}
-        for k, v := range baseFilter {
-                institutionFilter[k] = v
-        }
-        
-        if err := extractSuggestions(ctx, collection, institutionFilter, "kurum_adi", "institution", query, suggestionMap); err != nil {
-                return nil, err
+        // Search in institution names (from cache, not database field)
+        // Since kurum_adi is no longer in metadata, we'll add institution suggestions from cache
+        allKurumlar := utils.GetAllKurumlar()
+        queryLower := strings.ToLower(query)
+        for _, kurum := range allKurumlar {
+                kurumAdiLower := strings.ToLower(kurum.KurumAdi)
+                if strings.Contains(kurumAdiLower, queryLower) {
+                        // Extract words from institution name
+                        words := extractRelevantWords(kurum.KurumAdi, queryLower)
+                        for _, word := range words {
+                                wordLower := strings.ToLower(word)
+                                if !strings.Contains(wordLower, queryLower) {
+                                        continue
+                                }
+                                
+                                if existing, exists := suggestionMap[wordLower]; exists {
+                                        existing.Count++
+                                        if getTypePriority("institution") < getTypePriority(existing.Type) {
+                                                existing.Type = "institution"
+                                        }
+                                } else {
+                                        suggestionMap[wordLower] = &SuggestionItem{
+                                                Text:  word,
+                                                Count: 1,
+                                                Type:  "institution",
+                                        }
+                                }
+                        }
+                }
         }
 
         // Convert map to slice and sort by relevance
