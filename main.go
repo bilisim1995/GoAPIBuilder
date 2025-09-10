@@ -125,7 +125,7 @@ func setupRoutes() *mux.Router {
     "/api/v1/sitemap/institutions": "GET - Sitemap: All institutions",
     "/api/v1/sitemap/documents?kurum_id={id}": "GET - Sitemap: Documents by institution",
     "/api/v1/sitemap/all-documents": "GET - Sitemap: All documents",
-    "/api/v1/search?q={query}&limit={limit}&offset={offset}&kurum={institution}": "GET - Global search in titles, content, tags, institutions",
+    "/api/v1/search?q={query}&limit={limit}&offset={offset}&kurum={institution}&kurum_id={id}": "GET - Global search in titles, content, tags, institutions",
     "/api/v1/autocomplete?q={partial_query}&limit={limit}&kurum={institution}": "GET - Autocomplete suggestions for search",
     "/api/v1/health": "GET - Health check"
   },

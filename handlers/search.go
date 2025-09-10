@@ -50,8 +50,9 @@ func GlobalSearch(w http.ResponseWriter, r *http.Request) {
                 return
         }
 
-        // Get institution filter (optional)
-        institution := r.URL.Query().Get("kurum")
+        // Get institution filters (optional)
+        institution := r.URL.Query().Get("kurum")         // Institution name filter
+        institutionID := r.URL.Query().Get("kurum_id")    // Institution ID filter (more efficient)
 
         // Clean and prepare query
         query = strings.TrimSpace(query)
@@ -86,7 +87,7 @@ func GlobalSearch(w http.ResponseWriter, r *http.Request) {
         var allResults []SearchResult
 
         // Phase 1: Search in metadata (titles, descriptions, tags, institutions)
-        metadataResults, err := searchInMetadata(ctx, query, institution, limit*2) // Get more results to filter later
+        metadataResults, err := searchInMetadata(ctx, query, institution, institutionID, limit*2) // Get more results to filter later
         if err != nil {
                 utils.SendErrorResponse(w, http.StatusInternalServerError, "Failed to search metadata: "+err.Error())
                 return
@@ -94,7 +95,7 @@ func GlobalSearch(w http.ResponseWriter, r *http.Request) {
         allResults = append(allResults, metadataResults...)
 
         // Phase 2: Search in content
-        contentResults, err := searchInContent(ctx, query, institution, limit*2)
+        contentResults, err := searchInContent(ctx, query, institution, institutionID, limit*2)
         if err != nil {
                 utils.SendErrorResponse(w, http.StatusInternalServerError, "Failed to search content: "+err.Error())
                 return
@@ -145,7 +146,7 @@ func GlobalSearch(w http.ResponseWriter, r *http.Request) {
 }
 
 // searchInMetadata searches in document metadata (titles, descriptions, tags, institutions)
-func searchInMetadata(ctx context.Context, query string, institution string, limit int64) ([]SearchResult, error) {
+func searchInMetadata(ctx context.Context, query string, institution string, institutionID string, limit int64) ([]SearchResult, error) {
         collection := config.GetMetadataCollection(mongoClient)
         
         // Create regex for case-insensitive search
@@ -161,9 +162,14 @@ func searchInMetadata(ctx context.Context, query string, institution string, lim
         
         // Build comprehensive search filter with optional institution filter
         var filter bson.M
-        if institution != "" {
+        var kurumID string
+        
+        // Priority: kurum_id > kurum (institution name)
+        if institutionID != "" {
+                // Direct kurum_id filter (most efficient)
+                kurumID = institutionID
+        } else if institution != "" {
                 // Find kurum_id by kurum_adi from cache
-                var kurumID string
                 allKurumlar := utils.GetAllKurumlar()
                 for _, kurum := range allKurumlar {
                         if strings.Contains(strings.ToLower(kurum.KurumAdi), strings.ToLower(institution)) {
@@ -171,20 +177,21 @@ func searchInMetadata(ctx context.Context, query string, institution string, lim
                                 break
                         }
                 }
-                
-                if kurumID != "" {
-                        filter = bson.M{
-                                "status": "aktif",
-                                "$and": []bson.M{
-                                        {"kurum_id": kurumID},
-                                        {"$or": searchConditions},
-                                },
-                        }
-                } else {
-                        // Institution not found, return empty filter
-                        filter = bson.M{"status": "aktif", "_id": bson.M{"$exists": false}}
+        }
+        
+        if kurumID != "" {
+                filter = bson.M{
+                        "status": "aktif",
+                        "$and": []bson.M{
+                                {"kurum_id": kurumID},
+                                {"$or": searchConditions},
+                        },
                 }
+        } else if institution != "" || institutionID != "" {
+                // Institution specified but not found, return empty filter
+                filter = bson.M{"status": "aktif", "_id": bson.M{"$exists": false}}
         } else {
+                // No institution filter
                 filter = bson.M{
                         "status": "aktif",
                         "$or": searchConditions,
@@ -237,7 +244,7 @@ func searchInMetadata(ctx context.Context, query string, institution string, lim
 }
 
 // searchInContent searches in document content
-func searchInContent(ctx context.Context, query string, institution string, limit int64) ([]SearchResult, error) {
+func searchInContent(ctx context.Context, query string, institution string, institutionID string, limit int64) ([]SearchResult, error) {
         contentCollection := config.GetContentCollection(mongoClient)
         metadataCollection := config.GetMetadataCollection(mongoClient)
         
@@ -271,9 +278,23 @@ func searchInContent(ctx context.Context, query string, institution string, limi
                 }
                 
                 // Add institution filter if specified
-                if institution != "" {
-                        institutionRegex := bson.M{"$regex": primitive.Regex{Pattern: institution, Options: "i"}}
-                        metadataFilter["kurum_adi"] = institutionRegex
+                var kurumID string
+                if institutionID != "" {
+                        // Direct kurum_id filter (most efficient)
+                        kurumID = institutionID
+                } else if institution != "" {
+                        // Find kurum_id by kurum_adi from cache
+                        allKurumlar := utils.GetAllKurumlar()
+                        for _, kurum := range allKurumlar {
+                                if strings.Contains(strings.ToLower(kurum.KurumAdi), strings.ToLower(institution)) {
+                                        kurumID = kurum.ID.Hex()
+                                        break
+                                }
+                        }
+                }
+                
+                if kurumID != "" {
+                        metadataFilter["kurum_id"] = kurumID
                 }
                 
                 if err := metadataCollection.FindOne(ctx, metadataFilter).Decode(&metadata); err != nil {
