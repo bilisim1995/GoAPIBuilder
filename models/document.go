@@ -65,10 +65,11 @@ type DocumentDetails struct {
 
 // Institution represents a unique institution
 type Institution struct {
-        KurumID   string `json:"kurum_id" bson:"kurum_id"`
-        KurumAdi  string `json:"kurum_adi" bson:"kurum_adi"`
-        KurumLogo string `json:"kurum_logo" bson:"kurum_logo"`
-        Count     int32  `json:"count" bson:"count"`
+        KurumID       string `json:"kurum_id" bson:"kurum_id"`
+        KurumAdi      string `json:"kurum_adi" bson:"kurum_adi"`
+        KurumLogo     string `json:"kurum_logo" bson:"kurum_logo"`
+        KurumAciklama string `json:"kurum_aciklama" bson:"kurum_aciklama"`
+        Count         int32  `json:"count" bson:"count"`
 }
 
 // APIResponse represents a standard API response structure

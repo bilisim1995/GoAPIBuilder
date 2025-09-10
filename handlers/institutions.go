@@ -91,10 +91,11 @@ func GetInstitutions(w http.ResponseWriter, r *http.Request) {
                 }
 
                 institution := models.Institution{
-                        KurumID:   kurum.ID.Hex(),
-                        KurumAdi:  kurum.KurumAdi,
-                        KurumLogo: kurum.KurumLogo,
-                        Count:     count,
+                        KurumID:       kurum.ID.Hex(),
+                        KurumAdi:      kurum.KurumAdi,
+                        KurumLogo:     kurum.KurumLogo,
+                        KurumAciklama: kurum.KurumAciklama,
+                        Count:         count,
                 }
                 institutions = append(institutions, institution)
         }
