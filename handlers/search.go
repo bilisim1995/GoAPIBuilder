@@ -3,6 +3,7 @@ package handlers
 import (
         "context"
         "encoding/json"
+        "log"
         "net/http"
         "strconv"
         "strings"
@@ -53,6 +54,9 @@ func GlobalSearch(w http.ResponseWriter, r *http.Request) {
         // Get institution filters (optional)
         institution := r.URL.Query().Get("kurum")         // Institution name filter
         institutionID := r.URL.Query().Get("kurum_id")    // Institution ID filter (more efficient)
+        
+        // Log search parameters
+        log.Printf("Search request - Query: '%s', Kurum: '%s', KurumID: '%s'", query, institution, institutionID)
 
         // Clean and prepare query
         query = strings.TrimSpace(query)
