@@ -152,6 +152,12 @@ func getSuggestions(ctx context.Context, query string, institution string, limit
                 return nil, err
         }
 
+        // TODO: Content search temporarily disabled for performance optimization
+        // Will re-enable with better indexing and optimization
+        // if err := extractContentSuggestions(contentCtx, query, baseFilter, suggestionMap); err != nil {
+        //     // Log but don't fail - content search is optional and may timeout
+        // }
+
         // Search in institution names (from cache, not database field)
         // Since kurum_adi is no longer in metadata, we'll add institution suggestions from cache
         allKurumlar := utils.GetAllKurumlar()
@@ -284,17 +290,169 @@ func extractRelevantWords(text, queryLower string) []string {
 }
 
 // getTypePriority returns priority order for suggestion types (lower = higher priority)
+// extractContentSuggestions searches in content collection for both words and phrases
+func extractContentSuggestions(ctx context.Context, query string, baseFilter bson.M, suggestionMap map[string]*SuggestionItem) error {
+        contentCollection := config.GetContentCollection(mongoClient)
+        
+        // Create regex for content search
+        queryLower := strings.ToLower(query)
+        searchRegex := bson.M{"$regex": primitive.Regex{Pattern: query, Options: "i"}}
+        
+        // Build content filter - we need to match metadata_id to kurum_id filter
+        contentFilter := bson.M{"icerik": searchRegex}
+        
+        // If we have institution filter, we need to join with metadata to get kurum_id
+        if kurumID, exists := baseFilter["kurum_id"]; exists {
+                // First get metadata_ids for this kurum_id
+                metadataCollection := config.GetMetadataCollection(mongoClient)
+                metadataFilter := bson.M{
+                        "kurum_id": kurumID,
+                        "status":   "aktif",
+                }
+                
+                cursor, err := metadataCollection.Find(ctx, metadataFilter, options.Find().SetProjection(bson.M{"_id": 1}))
+                if err != nil {
+                        return err
+                }
+                defer cursor.Close(ctx)
+                
+                var metadataIDs []interface{}
+                for cursor.Next(ctx) {
+                        var doc bson.M
+                        if err := cursor.Decode(&doc); err != nil {
+                                continue
+                        }
+                        if id, ok := doc["_id"]; ok {
+                                metadataIDs = append(metadataIDs, id)
+                        }
+                }
+                
+                if len(metadataIDs) == 0 {
+                        return nil // No metadata for this institution
+                }
+                
+                contentFilter["metadata_id"] = bson.M{"$in": metadataIDs}
+        }
+        
+        // Limit content search to prevent performance issues
+        findOptions := options.Find()
+        findOptions.SetLimit(5) // Very low limit for content search to improve performance
+        findOptions.SetProjection(bson.M{"icerik": 1})
+        
+        cursor, err := contentCollection.Find(ctx, contentFilter, findOptions)
+        if err != nil {
+                return err
+        }
+        defer cursor.Close(ctx)
+        
+        for cursor.Next(ctx) {
+                var doc bson.M
+                if err := cursor.Decode(&doc); err != nil {
+                        continue
+                }
+                
+                content, ok := doc["icerik"].(string)
+                if !ok || content == "" {
+                        continue
+                }
+                
+                // Extract individual words (skip phrases for performance)
+                extractContentWords(content, queryLower, suggestionMap)
+                // Skip phrase extraction for now to improve performance
+                // extractContentPhrases(content, queryLower, suggestionMap)
+        }
+        
+        return cursor.Err()
+}
+
+// extractContentWords extracts individual words from content
+func extractContentWords(content, query string, suggestionMap map[string]*SuggestionItem) {
+        words := extractRelevantWords(content, query)
+        for _, word := range words {
+                wordLower := strings.ToLower(word)
+                if !strings.Contains(wordLower, query) || len(word) < 3 {
+                        continue
+                }
+                
+                if existing, exists := suggestionMap[wordLower]; exists {
+                        existing.Count++
+                        if getTypePriority("content") < getTypePriority(existing.Type) {
+                                existing.Type = "content"
+                        }
+                } else {
+                        suggestionMap[wordLower] = &SuggestionItem{
+                                Text:  word,
+                                Count: 1,
+                                Type:  "content",
+                        }
+                }
+        }
+}
+
+// extractContentPhrases extracts short phrases (2-4 words) from content
+func extractContentPhrases(content, query string, suggestionMap map[string]*SuggestionItem) {
+        // Split content into sentences
+        sentences := strings.FieldsFunc(content, func(r rune) bool {
+                return r == '.' || r == '!' || r == '?' || r == '\n'
+        })
+        
+        for _, sentence := range sentences {
+                sentence = strings.TrimSpace(sentence)
+                if len(sentence) < 10 || !strings.Contains(strings.ToLower(sentence), query) {
+                        continue
+                }
+                
+                // Extract phrases around the query term
+                words := strings.Fields(sentence)
+                for i, word := range words {
+                        if strings.Contains(strings.ToLower(word), query) {
+                                // Extract 2-4 word phrases around this position
+                                for phraseLen := 2; phraseLen <= 4; phraseLen++ {
+                                        for start := max(0, i-phraseLen+1); start <= i && start+phraseLen <= len(words); start++ {
+                                                phrase := strings.Join(words[start:start+phraseLen], " ")
+                                                phraseLower := strings.ToLower(phrase)
+                                                
+                                                if strings.Contains(phraseLower, query) && len(phrase) > len(query)+5 {
+                                                        if existing, exists := suggestionMap[phraseLower]; exists {
+                                                                existing.Count++
+                                                        } else {
+                                                                suggestionMap[phraseLower] = &SuggestionItem{
+                                                                        Text:  phrase,
+                                                                        Count: 1,
+                                                                        Type:  "phrase",
+                                                                }
+                                                        }
+                                                }
+                                        }
+                                }
+                        }
+                }
+        }
+}
+
+// max helper function
+func max(a, b int) int {
+        if a > b {
+                return a
+        }
+        return b
+}
+
 func getTypePriority(suggestionType string) int {
         switch suggestionType {
         case "title":
                 return 1
-        case "keyword":
+        case "phrase":
                 return 2
-        case "tag":
+        case "keyword":
                 return 3
-        case "institution":
+        case "tag":
                 return 4
-        default:
+        case "content":
                 return 5
+        case "institution":
+                return 6
+        default:
+                return 7
         }
 }
