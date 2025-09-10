@@ -22,11 +22,12 @@ name = "Go Legal Documents API"
 author = "agent"
 
 [workflows.workflow.metadata]
-outputType = "console"
+outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "MONGODB_CONNECTION_STRING=\"mongodb+srv://mevzuatgpt_db_user:SA7RPAnD0qOfe5jR@cluster0.hex24bc.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0\" MONGODB_DATABASE=\"mevzuatgpt\" MONGODB_METADATA_COLLECTION=\"metadata\" MONGODB_CONTENT_COLLECTION=\"content\" PORT=\"5000\" go run main.go"
+waitForPort = 5000
 
 [[ports]]
 localPort = 5000

@@ -3,7 +3,6 @@ package handlers
 import (
         "context"
         "encoding/json"
-        "log"
         "net/http"
         "regexp"
         "sort"
@@ -65,9 +64,6 @@ func Autocomplete(w http.ResponseWriter, r *http.Request) {
 
         // Get institution filter (optional)
         institution := r.URL.Query().Get("kurum")
-        
-        // Log autocomplete parameters
-        log.Printf("Autocomplete request - Query: '%s', Kurum: '%s'", query, institution)
 
         ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
         defer cancel()
