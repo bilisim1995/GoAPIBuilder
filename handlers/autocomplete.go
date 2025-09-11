@@ -92,9 +92,31 @@ func Autocomplete(w http.ResponseWriter, r *http.Request) {
 func getSuggestions(ctx context.Context, query string, institution string, limit int) ([]SuggestionItem, error) {
         collection := config.GetMetadataCollection(mongoClient)
         
-        // Create case-insensitive regex pattern
-        pattern := "(?i)" + regexp.QuoteMeta(query)
-        searchRegex := bson.M{"$regex": primitive.Regex{Pattern: pattern, Options: "i"}}
+        // Create case-insensitive regex pattern for multi-word support
+        // Handle both single words and phrases
+        var searchRegex bson.M
+        if strings.Contains(query, " ") {
+                // Multi-word query: escape each word and join with flexible spacing
+                words := strings.Fields(query)
+                escapedWords := make([]string, len(words))
+                for i, word := range words {
+                        escapedWords[i] = regexp.QuoteMeta(word)
+                }
+                // Allow flexible spacing between words and partial match on last word
+                if len(escapedWords) > 1 {
+                        lastWord := escapedWords[len(escapedWords)-1]
+                        prefix := strings.Join(escapedWords[:len(escapedWords)-1], `\s+`)
+                        pattern := "(?i)" + prefix + `\s+\w*` + lastWord
+                        searchRegex = bson.M{"$regex": primitive.Regex{Pattern: pattern, Options: "i"}}
+                } else {
+                        pattern := "(?i)" + regexp.QuoteMeta(query)
+                        searchRegex = bson.M{"$regex": primitive.Regex{Pattern: pattern, Options: "i"}}
+                }
+        } else {
+                // Single word query
+                pattern := "(?i)" + regexp.QuoteMeta(query)
+                searchRegex = bson.M{"$regex": primitive.Regex{Pattern: pattern, Options: "i"}}
+        }
         
         // Build base filter
         baseFilter := bson.M{"status": "aktif"}
@@ -267,12 +289,55 @@ func extractSuggestions(ctx context.Context, collection *mongo.Collection, filte
         return cursor.Err()
 }
 
-// extractRelevantWords extracts words from text that are relevant to the query
+// extractRelevantWords extracts words and phrases from text that are relevant to the query
 func extractRelevantWords(text, queryLower string) []string {
-        // Split text into words and clean them
-        words := strings.Fields(text)
         var relevantWords []string
         
+        // Handle multi-word queries (phrases)
+        if strings.Contains(queryLower, " ") {
+                queryWords := strings.Fields(queryLower)
+                if len(queryWords) > 1 {
+                        // Look for phrases that start with the query words
+                        lastWord := queryWords[len(queryWords)-1]
+                        
+                        // Find phrases in text that contain the prefix and have words starting with lastWord
+                        words := strings.Fields(text)
+                        for i := 0; i < len(words); i++ {
+                                // Try to match starting from each position
+                                if i+len(queryWords) <= len(words) {
+                                        // Check if we can form a phrase starting here
+                                        phraseWords := make([]string, 0)
+                                        matchCount := 0
+                                        
+                                        // Check prefix words
+                                        for j, qWord := range queryWords[:len(queryWords)-1] {
+                                                if i+j < len(words) {
+                                                        cleanWord := regexp.MustCompile(`[^\p{L}\p{N}]`).ReplaceAllString(words[i+j], "")
+                                                        if strings.Contains(strings.ToLower(cleanWord), qWord) {
+                                                                phraseWords = append(phraseWords, cleanWord)
+                                                                matchCount++
+                                                        }
+                                                }
+                                        }
+                                        
+                                        // Check if we found a phrase candidate and look for words that start with lastWord
+                                        if matchCount == len(queryWords)-1 {
+                                                for k := i + len(queryWords) - 1; k < len(words) && k < i+len(queryWords)+2; k++ {
+                                                        cleanWord := regexp.MustCompile(`[^\p{L}\p{N}]`).ReplaceAllString(words[k], "")
+                                                        if len(cleanWord) >= len(lastWord) && strings.HasPrefix(strings.ToLower(cleanWord), lastWord) {
+                                                                fullPhrase := strings.Join(phraseWords, " ") + " " + cleanWord
+                                                                relevantWords = append(relevantWords, fullPhrase)
+                                                                break
+                                                        }
+                                                }
+                                        }
+                                }
+                        }
+                }
+        }
+        
+        // Also extract individual words that contain the query (for single word or fallback)
+        words := strings.Fields(text)
         for _, word := range words {
                 // Clean word (remove punctuation, etc.)
                 cleanWord := regexp.MustCompile(`[^\p{L}\p{N}]`).ReplaceAllString(word, "")
