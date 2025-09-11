@@ -103,6 +103,7 @@ func GetDocumentsByInstitution(w http.ResponseWriter, r *http.Request) {
                 "_id":                1,
                 "kurum_id":           1,  // New field for institution reference
                 "pdf_adi":            1,
+                "belge_turu":         1,
                 "etiketler":          1,
                 "belge_yayin_tarihi": 1,
                 "belge_durumu":       1,
@@ -143,6 +144,7 @@ func GetDocumentsByInstitution(w http.ResponseWriter, r *http.Request) {
                         KurumLogo:        kurumLogo,
                         KurumAciklama:    kurumAciklama,
                         PdfAdi:           doc.PdfAdi,
+                        BelgeTuru:        doc.BelgeTuru,
                         Etiketler:        doc.Etiketler,
                         BelgeYayinTarihi: doc.BelgeYayinTarihi,
                         BelgeDurumu:      doc.BelgeDurumu,
@@ -357,6 +359,7 @@ func GetDocumentsByInstitutionSlug(w http.ResponseWriter, r *http.Request) {
                 "_id":                1,
                 "kurum_id":           1,  // New field for institution reference
                 "pdf_adi":            1,
+                "belge_turu":         1,
                 "etiketler":          1,
                 "belge_yayin_tarihi": 1,
                 "belge_durumu":       1,
@@ -397,6 +400,7 @@ func GetDocumentsByInstitutionSlug(w http.ResponseWriter, r *http.Request) {
                         KurumLogo:        kurumLogo,
                         KurumAciklama:    kurumAciklama,
                         PdfAdi:           doc.PdfAdi,
+                        BelgeTuru:        doc.BelgeTuru,
                         Etiketler:        doc.Etiketler,
                         BelgeYayinTarihi: doc.BelgeYayinTarihi,
                         BelgeDurumu:      doc.BelgeDurumu,

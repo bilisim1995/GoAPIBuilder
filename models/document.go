@@ -47,6 +47,7 @@ type DocumentSummary struct {
         KurumLogo        string `json:"kurum_logo"`
         KurumAciklama    string `json:"kurum_aciklama"`
         PdfAdi           string `json:"pdf_adi"`
+        BelgeTuru        string `json:"belge_turu"`
         Etiketler        string `json:"etiketler"`
         BelgeYayinTarihi string `json:"belge_yayin_tarihi"`
         BelgeDurumu      string `json:"belge_durumu"`
