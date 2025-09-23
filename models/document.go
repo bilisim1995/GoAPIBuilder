@@ -75,12 +75,16 @@ type Institution struct {
 
 // KurumDuyuru represents institution announcement data from kurum_duyuru collection
 type KurumDuyuru struct {
-        ID       primitive.ObjectID `bson:"_id" json:"id"`
-        KurumID  string             `bson:"kurum_id" json:"kurum_id"`
-        Baslik   string             `bson:"baslik" json:"baslik"`
-        Link     string             `bson:"link" json:"link"`
-        Tarih    string             `bson:"tarih" json:"tarih"`
-        Status   string             `bson:"status" json:"status"`
+        ID          primitive.ObjectID `bson:"_id" json:"id"`
+        KurumID     string             `bson:"kurum_id" json:"kurum_id"`
+        DuyuruLinki string             `bson:"duyuru_linki" json:"duyuru_linki"`
+}
+
+// DuyuruItem represents a single announcement item from web scraping
+type DuyuruItem struct {
+        Baslik string `json:"baslik"`
+        Link   string `json:"link"`
+        Tarih  string `json:"tarih"`
 }
 
 // APIResponse represents a standard API response structure
