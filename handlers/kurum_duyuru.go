@@ -109,24 +109,28 @@ func scrapeYargitayDuyuru(url string) ([]models.DuyuruItem, error) {
 // extractDuyurularWithRegex extracts announcements using regex patterns
 func extractDuyurularWithRegex(htmlContent, baseURL string) []models.DuyuruItem {
         var duyurular []models.DuyuruItem
+        seenLinks := make(map[string]bool) // Deduplication
 
-        // Regex pattern to find links with announcement-related text
-        // Look for <a href="..." ... >title</a> patterns
-        linkPattern := regexp.MustCompile(`<a[^>]+href=["']([^"']*(?:duyuru|haber|news|announcement)[^"']*)["'][^>]*>([^<]+)</a>`)
+        // Primary regex: Yargıtay item links + keyword-based links with nested HTML support
+        linkPattern := regexp.MustCompile(`(?is)<a[^>]+href=["']([^"']*(?:/item/\d+/[^"']*|(?:duyuru|haber|news|announcement)[^"']*))["'][^>]*>([\s\S]*?)</a>`)
         matches := linkPattern.FindAllStringSubmatch(htmlContent, -1)
         
         for _, match := range matches {
                 if len(match) >= 3 {
                         href := strings.TrimSpace(match[1])
-                        title := strings.TrimSpace(match[2])
+                        innerHTML := strings.TrimSpace(match[2])
                         
-                        // Clean title from HTML entities and extra spaces
-                        title = cleanHTML(title)
+                        // Clean title from HTML entities and extract text
+                        title := cleanHTML(innerHTML)
                         
-                        if len(title) > 10 && href != "" { // Minimum meaningful title length
+                        // Normalize link for deduplication
+                        normalizedLink := makeAbsoluteURL(href, baseURL)
+                        
+                        if len(title) > 10 && href != "" && !seenLinks[normalizedLink] {
+                                seenLinks[normalizedLink] = true
                                 duyuru := models.DuyuruItem{
                                         Baslik: title,
-                                        Link:   makeAbsoluteURL(href, baseURL),
+                                        Link:   normalizedLink,
                                         Tarih:  extractDateFromHTML(htmlContent, title),
                                 }
                                 duyurular = append(duyurular, duyuru)
@@ -134,28 +138,64 @@ func extractDuyurularWithRegex(htmlContent, baseURL string) []models.DuyuruItem 
                 }
         }
         
-        // If no specific patterns found, try general link extraction
-        if len(duyurular) == 0 {
-                generalLinkPattern := regexp.MustCompile(`<a[^>]+href=["']([^"']*)["'][^>]*>([^<]{15,})</a>`)
-                generalMatches := generalLinkPattern.FindAllStringSubmatch(htmlContent, -1)
+        // Secondary pass: if we have fewer than 5 items, try general item links
+        if len(duyurular) < 5 {
+                itemLinkPattern := regexp.MustCompile(`(?is)<a[^>]+href=["']([^"']*/item/\d+/[^"']*)["'][^>]*>([\s\S]*?)</a>`)
+                itemMatches := itemLinkPattern.FindAllStringSubmatch(htmlContent, -1)
                 
-                for _, match := range generalMatches {
+                for _, match := range itemMatches {
+                        if len(duyurular) >= 5 {
+                                break
+                        }
+                        
                         if len(match) >= 3 {
                                 href := strings.TrimSpace(match[1])
-                                title := strings.TrimSpace(match[2])
-                                title = cleanHTML(title)
+                                innerHTML := strings.TrimSpace(match[2])
+                                title := cleanHTML(innerHTML)
                                 
-                                // Filter out navigation links, menus etc.
-                                if !isNavigationLink(title) && len(title) > 15 {
+                                normalizedLink := makeAbsoluteURL(href, baseURL)
+                                
+                                if len(title) > 10 && !seenLinks[normalizedLink] && !isNavigationLink(title) {
+                                        seenLinks[normalizedLink] = true
                                         duyuru := models.DuyuruItem{
                                                 Baslik: title,
-                                                Link:   makeAbsoluteURL(href, baseURL),
+                                                Link:   normalizedLink,
                                                 Tarih:  extractDateFromHTML(htmlContent, title),
                                         }
                                         duyurular = append(duyurular, duyuru)
                                 }
                         }
                 }
+        }
+        
+        // Final fallback: general links if still not enough
+        if len(duyurular) < 5 {
+                generalLinkPattern := regexp.MustCompile(`(?is)<a[^>]+href=["']([^"']*)["'][^>]*>([\s\S]{15,}?)</a>`)
+                generalMatches := generalLinkPattern.FindAllStringSubmatch(htmlContent, -1)
+                
+                for _, match := range generalMatches {
+                        if len(duyurular) >= 5 {
+                                break
+                        }
+                        
+                        if len(match) >= 3 {
+                                href := strings.TrimSpace(match[1])
+                                innerHTML := strings.TrimSpace(match[2])
+                                title := cleanHTML(innerHTML)
+                                
+                                normalizedLink := makeAbsoluteURL(href, baseURL)
+                                
+                                if len(title) > 15 && !seenLinks[normalizedLink] && !isNavigationLink(title) {
+                                        seenLinks[normalizedLink] = true
+                                        duyuru := models.DuyuruItem{
+                                                Baslik: title,
+                                                Link:   normalizedLink,
+                                                Tarih:  extractDateFromHTML(htmlContent, title),
+                                        }
+                                        duyurular = append(duyurular, duyuru)
+                                }
+                        }
+                        }
         }
         
         return duyurular
