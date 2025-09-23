@@ -64,3 +64,9 @@ func GetKurumlarCollection(client *mongo.Client) *mongo.Collection {
         db := GetDatabase(client)
         return db.Collection("kurumlar") // Kurumlar collection name
 }
+
+// GetKurumDuyuruCollection returns the kurum_duyuru collection
+func GetKurumDuyuruCollection(client *mongo.Client) *mongo.Collection {
+        db := GetDatabase(client)
+        return db.Collection("kurum_duyuru") // Kurum duyuru collection name
+}

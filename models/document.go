@@ -73,6 +73,16 @@ type Institution struct {
         Count         int32  `json:"count" bson:"count"`
 }
 
+// KurumDuyuru represents institution announcement data from kurum_duyuru collection
+type KurumDuyuru struct {
+        ID       primitive.ObjectID `bson:"_id" json:"id"`
+        KurumID  string             `bson:"kurum_id" json:"kurum_id"`
+        Baslik   string             `bson:"baslik" json:"baslik"`
+        Link     string             `bson:"link" json:"link"`
+        Tarih    string             `bson:"tarih" json:"tarih"`
+        Status   string             `bson:"status" json:"status"`
+}
+
 // APIResponse represents a standard API response structure
 type APIResponse struct {
         Success bool        `json:"success"`
