@@ -225,6 +225,20 @@ func cleanHTML(text string) string {
         text = strings.ReplaceAll(text, "&lt;", "<")
         text = strings.ReplaceAll(text, "&gt;", ">")
         
+        // Decode Turkish character HTML entities
+        text = strings.ReplaceAll(text, "&#x130;", "İ")  // İ
+        text = strings.ReplaceAll(text, "&#x131;", "ı")  // ı
+        text = strings.ReplaceAll(text, "&#x15F;", "ş")  // ş
+        text = strings.ReplaceAll(text, "&#x15E;", "Ş")  // Ş
+        text = strings.ReplaceAll(text, "&#xD6;", "Ö")   // Ö
+        text = strings.ReplaceAll(text, "&#xF6;", "ö")   // ö
+        text = strings.ReplaceAll(text, "&#xDC;", "Ü")   // Ü
+        text = strings.ReplaceAll(text, "&#xFC;", "ü")   // ü
+        text = strings.ReplaceAll(text, "&#xC7;", "Ç")   // Ç
+        text = strings.ReplaceAll(text, "&#xE7;", "ç")   // ç
+        text = strings.ReplaceAll(text, "&#x11E;", "Ğ")  // Ğ
+        text = strings.ReplaceAll(text, "&#x11F;", "ğ")  // ğ
+        
         // Clean extra spaces
         text = regexp.MustCompile(`\s+`).ReplaceAllString(text, " ")
         
