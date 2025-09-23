@@ -101,6 +101,9 @@ func setupRoutes() *mux.Router {
         api.HandleFunc("/search", handlers.GlobalSearch).Methods("GET", "OPTIONS")
         api.HandleFunc("/autocomplete", handlers.Autocomplete).Methods("GET", "OPTIONS")
 
+        // Kurum duyuru endpoint
+        api.HandleFunc("/kurum-duyuru", handlers.GetKurumDuyuru).Methods("GET", "OPTIONS")
+
         // Health check endpoint
         api.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
                 w.Header().Set("Content-Type", "application/json")

@@ -11,7 +11,6 @@ import (
         "time"
 
         "go.mongodb.org/mongo-driver/bson"
-        "golang.org/x/net/html"
 
         "legal-documents-api/config"
         "legal-documents-api/models"
@@ -96,15 +95,8 @@ func scrapeYargitayDuyuru(url string) ([]models.DuyuruItem, error) {
                 return nil, fmt.Errorf("Failed to read response: %v", err)
         }
 
-        // Parse HTML
-        doc, err := html.Parse(strings.NewReader(string(body)))
-        if err != nil {
-                return nil, fmt.Errorf("HTML parse error: %v", err)
-        }
-
-        // Extract announcements
-        var duyurular []models.DuyuruItem
-        extractDuyurular(doc, &duyurular, url)
+        // Parse HTML with regex patterns (simpler approach)
+        duyurular := extractDuyurularWithRegex(string(body), url)
 
         // Limit to 5 results
         if len(duyurular) > 5 {
@@ -114,112 +106,123 @@ func scrapeYargitayDuyuru(url string) ([]models.DuyuruItem, error) {
         return duyurular, nil
 }
 
-// extractDuyurular recursively searches HTML for announcement items
-func extractDuyurular(n *html.Node, duyurular *[]models.DuyuruItem, baseURL string) {
-        // Look for announcement list items or similar patterns
-        if n.Type == html.ElementNode {
-                // Check for common announcement patterns in Yargıtay
-                if (n.Data == "div" || n.Data == "li" || n.Data == "tr") && hasAnnouncementClass(n) {
-                        duyuru := extractSingleDuyuru(n, baseURL)
-                        if duyuru.Baslik != "" && duyuru.Link != "" {
-                                *duyurular = append(*duyurular, duyuru)
+// extractDuyurularWithRegex extracts announcements using regex patterns
+func extractDuyurularWithRegex(htmlContent, baseURL string) []models.DuyuruItem {
+        var duyurular []models.DuyuruItem
+
+        // Regex pattern to find links with announcement-related text
+        // Look for <a href="..." ... >title</a> patterns
+        linkPattern := regexp.MustCompile(`<a[^>]+href=["']([^"']*(?:duyuru|haber|news|announcement)[^"']*)["'][^>]*>([^<]+)</a>`)
+        matches := linkPattern.FindAllStringSubmatch(htmlContent, -1)
+        
+        for _, match := range matches {
+                if len(match) >= 3 {
+                        href := strings.TrimSpace(match[1])
+                        title := strings.TrimSpace(match[2])
+                        
+                        // Clean title from HTML entities and extra spaces
+                        title = cleanHTML(title)
+                        
+                        if len(title) > 10 && href != "" { // Minimum meaningful title length
+                                duyuru := models.DuyuruItem{
+                                        Baslik: title,
+                                        Link:   makeAbsoluteURL(href, baseURL),
+                                        Tarih:  extractDateFromHTML(htmlContent, title),
+                                }
+                                duyurular = append(duyurular, duyuru)
                         }
                 }
+        }
+        
+        // If no specific patterns found, try general link extraction
+        if len(duyurular) == 0 {
+                generalLinkPattern := regexp.MustCompile(`<a[^>]+href=["']([^"']*)["'][^>]*>([^<]{15,})</a>`)
+                generalMatches := generalLinkPattern.FindAllStringSubmatch(htmlContent, -1)
                 
-                // Also look for simple link patterns
-                if n.Data == "a" {
-                        href := getAttr(n, "href")
-                        if href != "" && strings.Contains(href, "duyuru") {
-                                text := getTextContent(n)
-                                if text != "" && len(text) > 10 { // Minimum meaningful title length
+                for _, match := range generalMatches {
+                        if len(match) >= 3 {
+                                href := strings.TrimSpace(match[1])
+                                title := strings.TrimSpace(match[2])
+                                title = cleanHTML(title)
+                                
+                                // Filter out navigation links, menus etc.
+                                if !isNavigationLink(title) && len(title) > 15 {
                                         duyuru := models.DuyuruItem{
-                                                Baslik: strings.TrimSpace(text),
+                                                Baslik: title,
                                                 Link:   makeAbsoluteURL(href, baseURL),
-                                                Tarih:  extractDateFromText(text),
+                                                Tarih:  extractDateFromHTML(htmlContent, title),
                                         }
-                                        *duyurular = append(*duyurular, duyuru)
+                                        duyurular = append(duyurular, duyuru)
                                 }
                         }
                 }
         }
-
-        // Recursively search child nodes
-        for c := n.FirstChild; c != nil; c = c.NextSibling {
-                extractDuyurular(c, duyurular, baseURL)
-        }
+        
+        return duyurular
 }
 
-// hasAnnouncementClass checks if node has announcement-related class or attributes
-func hasAnnouncementClass(n *html.Node) bool {
-        class := getAttr(n, "class")
-        id := getAttr(n, "id")
+// cleanHTML removes HTML entities and cleans text
+func cleanHTML(text string) string {
+        // Remove HTML tags
+        text = regexp.MustCompile(`<[^>]*>`).ReplaceAllString(text, "")
         
-        keywords := []string{"duyuru", "announcement", "news", "notice", "item", "list"}
+        // Replace common HTML entities
+        text = strings.ReplaceAll(text, "&nbsp;", " ")
+        text = strings.ReplaceAll(text, "&amp;", "&")
+        text = strings.ReplaceAll(text, "&quot;", "\"")
+        text = strings.ReplaceAll(text, "&lt;", "<")
+        text = strings.ReplaceAll(text, "&gt;", ">")
         
-        for _, keyword := range keywords {
-                if strings.Contains(strings.ToLower(class), keyword) ||
-                   strings.Contains(strings.ToLower(id), keyword) {
+        // Clean extra spaces
+        text = regexp.MustCompile(`\s+`).ReplaceAllString(text, " ")
+        
+        return strings.TrimSpace(text)
+}
+
+// isNavigationLink checks if the text looks like a navigation item
+func isNavigationLink(text string) bool {
+        navKeywords := []string{
+                "ana sayfa", "anasayfa", "home", "menü", "menu",
+                "hakkımızda", "iletişim", "contact", "about",
+                "giriş", "login", "kayıt", "register", "çıkış", "logout",
+                "ara", "search", "site haritası", "sitemap",
+        }
+        
+        lowerText := strings.ToLower(text)
+        for _, keyword := range navKeywords {
+                if strings.Contains(lowerText, keyword) {
                         return true
                 }
         }
-        return false
+        
+        // Check for very short texts (likely navigation)
+        return len(strings.TrimSpace(text)) < 15
 }
 
-// extractSingleDuyuru extracts title, link and date from a single announcement node
-func extractSingleDuyuru(n *html.Node, baseURL string) models.DuyuruItem {
-        var duyuru models.DuyuruItem
-        
-        // Find link and title
-        linkNode := findFirstElement(n, "a")
-        if linkNode != nil {
-                duyuru.Link = makeAbsoluteURL(getAttr(linkNode, "href"), baseURL)
-                duyuru.Baslik = strings.TrimSpace(getTextContent(linkNode))
+// extractDateFromHTML tries to find date near the announcement title
+func extractDateFromHTML(htmlContent, title string) string {
+        // Look for date patterns near the title
+        titleIndex := strings.Index(htmlContent, title)
+        if titleIndex == -1 {
+                return time.Now().Format("02.01.2006")
         }
         
-        // If no link found, try to get text content as title
-        if duyuru.Baslik == "" {
-                duyuru.Baslik = strings.TrimSpace(getTextContent(n))
+        // Search in surrounding text (500 characters before and after)
+        start := titleIndex - 500
+        if start < 0 {
+                start = 0
+        }
+        end := titleIndex + len(title) + 500
+        if end > len(htmlContent) {
+                end = len(htmlContent)
         }
         
-        // Extract date from the node or its siblings
-        duyuru.Tarih = extractDateFromNode(n)
-        
-        return duyuru
-}
-
-// Helper functions
-func getAttr(n *html.Node, key string) string {
-        for _, attr := range n.Attr {
-                if attr.Key == key {
-                        return attr.Val
-                }
-        }
-        return ""
-}
-
-func getTextContent(n *html.Node) string {
-        if n.Type == html.TextNode {
-                return n.Data
+        surroundingText := htmlContent[start:end]
+        if date := extractDateFromText(surroundingText); date != "" {
+                return date
         }
         
-        var text strings.Builder
-        for c := n.FirstChild; c != nil; c = c.NextSibling {
-                text.WriteString(getTextContent(c))
-        }
-        return text.String()
-}
-
-func findFirstElement(n *html.Node, tag string) *html.Node {
-        if n.Type == html.ElementNode && n.Data == tag {
-                return n
-        }
-        
-        for c := n.FirstChild; c != nil; c = c.NextSibling {
-                if result := findFirstElement(c, tag); result != nil {
-                        return result
-                }
-        }
-        return nil
+        return time.Now().Format("02.01.2006")
 }
 
 func makeAbsoluteURL(href, baseURL string) string {
@@ -254,20 +257,3 @@ func extractDateFromText(text string) string {
         return ""
 }
 
-func extractDateFromNode(n *html.Node) string {
-        // Try to find date in the current node and siblings
-        text := getTextContent(n)
-        if date := extractDateFromText(text); date != "" {
-                return date
-        }
-        
-        // Try parent node
-        if n.Parent != nil {
-                parentText := getTextContent(n.Parent)
-                if date := extractDateFromText(parentText); date != "" {
-                        return date
-                }
-        }
-        
-        return time.Now().Format("02.01.2006") // Default to today
-}
