@@ -77,6 +77,8 @@ func scrapeDuyurular(url string) ([]models.DuyuruItem, error) {
                 return scrapeYargitayDuyuru(url)
         } else if strings.Contains(url, "sgk.gov.tr") {
                 return scrapeSGKDuyuru(url)
+        } else if strings.Contains(url, "iskur.gov.tr") {
+                return scrapeIskurDuyuru(url)
         } else {
                 // Default to generic scraping
                 return scrapeYargitayDuyuru(url)
@@ -460,6 +462,156 @@ func extractSGKDateFromText(text string) string {
         
         // Pattern: "23 Eylül 2025"
         pattern := regexp.MustCompile(`(\d{1,2})\s+(Ocak|Şubat|Mart|Nisan|Mayıs|Haziran|Temmuz|Ağustos|Eylül|Ekim|Kasım|Aralık)\s+(\d{4})`)
+        if match := pattern.FindStringSubmatch(text); len(match) >= 4 {
+                day := match[1]
+                month := turkishMonths[match[2]]
+                year := match[3]
+                if len(day) == 1 {
+                        day = "0" + day
+                }
+                return day + "." + month + "." + year
+        }
+        
+        // Fallback to standard date patterns
+        return extractDateFromText(text)
+}
+
+// scrapeIskurDuyuru scrapes announcements from İşkur website
+func scrapeIskurDuyuru(url string) ([]models.DuyuruItem, error) {
+        // Create HTTP client with timeout
+        client := &http.Client{
+                Timeout: 15 * time.Second,
+        }
+
+        // Make GET request
+        resp, err := client.Get(url)
+        if err != nil {
+                return nil, fmt.Errorf("HTTP request failed: %v", err)
+        }
+        defer resp.Body.Close()
+
+        if resp.StatusCode != http.StatusOK {
+                return nil, fmt.Errorf("HTTP error: %d", resp.StatusCode)
+        }
+
+        // Read response body
+        body, err := io.ReadAll(resp.Body)
+        if err != nil {
+                return nil, fmt.Errorf("Failed to read response: %v", err)
+        }
+
+        // Parse HTML with İşkur-specific regex patterns
+        duyurular := extractIskurDuyurularWithRegex(string(body), url)
+
+        // Limit to 5 results
+        if len(duyurular) > 5 {
+                duyurular = duyurular[:5]
+        }
+
+        return duyurular, nil
+}
+
+// extractIskurDuyurularWithRegex extracts İşkur announcements using regex patterns
+func extractIskurDuyurularWithRegex(htmlContent, baseURL string) []models.DuyuruItem {
+        var duyurular []models.DuyuruItem
+        seenLinks := make(map[string]bool) // Deduplication
+
+        // Primary regex: İşkur /duyurular/ links
+        linkPattern := regexp.MustCompile(`(?is)<a[^>]+href=["']([^"']*/duyurular/[^"']+)["'][^>]*title=["']([^"']+)["']`)
+        matches := linkPattern.FindAllStringSubmatch(htmlContent, -1)
+        
+        for _, match := range matches {
+                if len(match) >= 3 {
+                        href := strings.TrimSpace(match[1])
+                        title := strings.TrimSpace(match[2])
+                        
+                        // Clean title from HTML entities and extract text
+                        title = cleanHTML(title)
+                        
+                        // Normalize link for deduplication
+                        normalizedLink := makeAbsoluteURL(href, baseURL)
+                        
+                        if len(title) > 10 && href != "" && !seenLinks[normalizedLink] {
+                                seenLinks[normalizedLink] = true
+                                duyuru := models.DuyuruItem{
+                                        Baslik: title,
+                                        Link:   normalizedLink,
+                                        Tarih:  extractIskurDateFromHTML(htmlContent, title),
+                                }
+                                duyurular = append(duyurular, duyuru)
+                        }
+                }
+        }
+        
+        // Secondary pass: if we have fewer than 5 items, try general duyuru links without title attribute
+        if len(duyurular) < 5 {
+                generalPattern := regexp.MustCompile(`(?is)<a[^>]+href=["']([^"']*/duyurular/[^"']*)["'][^>]*>([\s\S]*?)</a>`)
+                generalMatches := generalPattern.FindAllStringSubmatch(htmlContent, -1)
+                
+                for _, match := range generalMatches {
+                        if len(duyurular) >= 5 {
+                                break
+                        }
+                        
+                        if len(match) >= 3 {
+                                href := strings.TrimSpace(match[1])
+                                innerHTML := strings.TrimSpace(match[2])
+                                title := cleanHTML(innerHTML)
+                                
+                                normalizedLink := makeAbsoluteURL(href, baseURL)
+                                
+                                if len(title) > 15 && !seenLinks[normalizedLink] && !isNavigationLink(title) {
+                                        seenLinks[normalizedLink] = true
+                                        duyuru := models.DuyuruItem{
+                                                Baslik: title,
+                                                Link:   normalizedLink,
+                                                Tarih:  extractIskurDateFromHTML(htmlContent, title),
+                                        }
+                                        duyurular = append(duyurular, duyuru)
+                                }
+                        }
+                }
+        }
+        
+        return duyurular
+}
+
+// extractIskurDateFromHTML tries to find İşkur-specific date patterns
+func extractIskurDateFromHTML(htmlContent, title string) string {
+        // Look for Turkish date patterns near the title
+        titleIndex := strings.Index(htmlContent, title)
+        if titleIndex == -1 {
+                return time.Now().Format("02.01.2006")
+        }
+        
+        // Search in surrounding text (1500 characters before and after)
+        start := titleIndex - 1500
+        if start < 0 {
+                start = 0
+        }
+        end := titleIndex + len(title) + 1500
+        if end > len(htmlContent) {
+                end = len(htmlContent)
+        }
+        
+        surroundingText := htmlContent[start:end]
+        if date := extractIskurDateFromText(surroundingText); date != "" {
+                return date
+        }
+        
+        return time.Now().Format("02.01.2006")
+}
+
+// extractIskurDateFromText extracts İşkur-specific date formats
+func extractIskurDateFromText(text string) string {
+        // İşkur uses Turkish abbreviated month names: "11 Ağu 2025", "27 Haz 2025"
+        turkishMonths := map[string]string{
+                "Oca": "01", "Şub": "02", "Mar": "03", "Nis": "04", "May": "05", "Haz": "06",
+                "Tem": "07", "Ağu": "08", "Eyl": "09", "Eki": "10", "Kas": "11", "Ara": "12",
+        }
+        
+        // Pattern: "11 Ağu 2025"
+        pattern := regexp.MustCompile(`(\d{1,2})\s+(Oca|Şub|Mar|Nis|May|Haz|Tem|Ağu|Eyl|Eki|Kas|Ara)\s+(\d{4})`)
         if match := pattern.FindStringSubmatch(text); len(match) >= 4 {
                 day := match[1]
                 month := turkishMonths[match[2]]
