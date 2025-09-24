@@ -241,6 +241,10 @@ func cleanHTML(text string) string {
         text = strings.ReplaceAll(text, "&#x11E;", "Ğ")  // Ğ
         text = strings.ReplaceAll(text, "&#x11F;", "ğ")  // ğ
         
+        // Decode quotation marks
+        text = strings.ReplaceAll(text, "&#x201C;", "\"") // Left double quotation mark
+        text = strings.ReplaceAll(text, "&#x201D;", "\"") // Right double quotation mark
+        
         // Clean extra spaces
         text = regexp.MustCompile(`\s+`).ReplaceAllString(text, " ")
         
