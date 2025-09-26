@@ -103,6 +103,9 @@ func setupRoutes() *mux.Router {
 
         // Kurum duyuru endpoint
         api.HandleFunc("/kurum-duyuru", handlers.GetKurumDuyuru).Methods("GET", "OPTIONS")
+        
+        // Links endpoint
+        api.HandleFunc("/links", handlers.GetLinks).Methods("GET", "OPTIONS")
 
         // Health check endpoint
         api.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
