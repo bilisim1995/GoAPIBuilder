@@ -87,6 +87,16 @@ type DuyuruItem struct {
         Tarih  string `json:"tarih"`
 }
 
+// Link represents institution service links data from links collection
+type Link struct {
+        ID        primitive.ObjectID `bson:"_id" json:"id"`
+        Baslik    string             `bson:"baslik" json:"baslik"`
+        Aciklama  string             `bson:"aciklama" json:"aciklama"`
+        URL       string             `bson:"url" json:"url"`
+        KurumID   primitive.ObjectID `bson:"kurum_id" json:"kurum_id"`
+        CreatedAt primitive.DateTime `bson:"created_at" json:"created_at"`
+}
+
 // APIResponse represents a standard API response structure
 type APIResponse struct {
         Success bool        `json:"success"`
