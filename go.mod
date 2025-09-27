@@ -1,4 +1,4 @@
-module legal-api
+module legal-documents-api
 
 go 1.19
 

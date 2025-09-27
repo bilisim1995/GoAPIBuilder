@@ -9,9 +9,9 @@ import (
         "go.mongodb.org/mongo-driver/bson"
         "go.mongodb.org/mongo-driver/bson/primitive"
 
-        "legal-api/config"
-        "legal-api/models"
-        "legal-api/utils"
+        "legal-documents-api/config"
+        "legal-documents-api/models"
+        "legal-documents-api/utils"
 )
 
 // GetLinks returns service links for the specified institution

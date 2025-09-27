@@ -12,10 +12,10 @@ import (
         "github.com/joho/godotenv"
         "go.mongodb.org/mongo-driver/mongo"
 
-        "legal-api/config"
-        "legal-api/handlers"
-        "legal-api/middleware"
-        "legal-api/utils"
+        "legal-documents-api/config"
+        "legal-documents-api/handlers"
+        "legal-documents-api/middleware"
+        "legal-documents-api/utils"
 )
 
 var mongoClient *mongo.Client
