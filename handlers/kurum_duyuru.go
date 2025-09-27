@@ -4,6 +4,7 @@ import (
         "context"
         "encoding/json"
         "fmt"
+        "html"
         "io"
         "net/http"
         "regexp"
@@ -11,6 +12,7 @@ import (
         "time"
 
         "go.mongodb.org/mongo-driver/bson"
+        "golang.org/x/net/html/charset"
 
         "legal-documents-api/config"
         "legal-documents-api/models"
@@ -103,8 +105,12 @@ func scrapeYargitayDuyuru(url string) ([]models.DuyuruItem, error) {
                 return nil, fmt.Errorf("HTTP error: %d", resp.StatusCode)
         }
 
-        // Read response body
-        body, err := io.ReadAll(resp.Body)
+        // Read response body with charset conversion
+        reader, err := charset.NewReader(resp.Body, resp.Header.Get("Content-Type"))
+        if err != nil {
+                reader = resp.Body // Fallback to original body if charset detection fails
+        }
+        body, err := io.ReadAll(reader)
         if err != nil {
                 return nil, fmt.Errorf("Failed to read response: %v", err)
         }
@@ -220,30 +226,8 @@ func cleanHTML(text string) string {
         // Remove HTML tags
         text = regexp.MustCompile(`<[^>]*>`).ReplaceAllString(text, "")
         
-        // Replace common HTML entities
-        text = strings.ReplaceAll(text, "&nbsp;", " ")
-        text = strings.ReplaceAll(text, "&amp;", "&")
-        text = strings.ReplaceAll(text, "&quot;", "\"")
-        text = strings.ReplaceAll(text, "&lt;", "<")
-        text = strings.ReplaceAll(text, "&gt;", ">")
-        
-        // Decode Turkish character HTML entities
-        text = strings.ReplaceAll(text, "&#x130;", "İ")  // İ
-        text = strings.ReplaceAll(text, "&#x131;", "ı")  // ı
-        text = strings.ReplaceAll(text, "&#x15F;", "ş")  // ş
-        text = strings.ReplaceAll(text, "&#x15E;", "Ş")  // Ş
-        text = strings.ReplaceAll(text, "&#xD6;", "Ö")   // Ö
-        text = strings.ReplaceAll(text, "&#xF6;", "ö")   // ö
-        text = strings.ReplaceAll(text, "&#xDC;", "Ü")   // Ü
-        text = strings.ReplaceAll(text, "&#xFC;", "ü")   // ü
-        text = strings.ReplaceAll(text, "&#xC7;", "Ç")   // Ç
-        text = strings.ReplaceAll(text, "&#xE7;", "ç")   // ç
-        text = strings.ReplaceAll(text, "&#x11E;", "Ğ")  // Ğ
-        text = strings.ReplaceAll(text, "&#x11F;", "ğ")  // ğ
-        
-        // Decode quotation marks
-        text = strings.ReplaceAll(text, "&#x201C;", "\"") // Left double quotation mark
-        text = strings.ReplaceAll(text, "&#x201D;", "\"") // Right double quotation mark
+        // Decode all HTML entities comprehensively (handles Turkish chars and more)
+        text = html.UnescapeString(text)
         
         // Clean extra spaces
         text = regexp.MustCompile(`\s+`).ReplaceAllString(text, " ")
@@ -347,8 +331,12 @@ func scrapeSGKDuyuru(url string) ([]models.DuyuruItem, error) {
                 return nil, fmt.Errorf("HTTP error: %d", resp.StatusCode)
         }
 
-        // Read response body
-        body, err := io.ReadAll(resp.Body)
+        // Read response body with charset conversion
+        reader, err := charset.NewReader(resp.Body, resp.Header.Get("Content-Type"))
+        if err != nil {
+                reader = resp.Body // Fallback to original body if charset detection fails
+        }
+        body, err := io.ReadAll(reader)
         if err != nil {
                 return nil, fmt.Errorf("Failed to read response: %v", err)
         }
@@ -498,8 +486,12 @@ func scrapeIskurDuyuru(url string) ([]models.DuyuruItem, error) {
                 return nil, fmt.Errorf("HTTP error: %d", resp.StatusCode)
         }
 
-        // Read response body
-        body, err := io.ReadAll(resp.Body)
+        // Read response body with charset conversion
+        reader, err := charset.NewReader(resp.Body, resp.Header.Get("Content-Type"))
+        if err != nil {
+                reader = resp.Body // Fallback to original body if charset detection fails
+        }
+        body, err := io.ReadAll(reader)
         if err != nil {
                 return nil, fmt.Errorf("Failed to read response: %v", err)
         }
