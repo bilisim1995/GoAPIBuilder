@@ -106,6 +106,10 @@ func setupRoutes() *mux.Router {
         
         // Links endpoint
         api.HandleFunc("/links", handlers.GetLinks).Methods("GET", "OPTIONS")
+        
+        // Cookie management endpoints
+        api.HandleFunc("/clear-cookies", handlers.ClearCookies).Methods("POST", "OPTIONS")
+        api.HandleFunc("/clear-cookie", handlers.ClearSpecificCookie).Methods("POST", "OPTIONS")
 
         // Health check endpoint
         api.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
