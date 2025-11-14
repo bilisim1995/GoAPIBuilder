@@ -114,6 +114,9 @@ func setupRoutes() *mux.Router {
         // Recent regulations endpoint
         api.HandleFunc("/regulations/recent", handlers.GetRecentRegulations).Methods("GET", "OPTIONS")
 
+        // Statistics endpoint
+        api.HandleFunc("/statistics", handlers.GetStatistics).Methods("GET", "OPTIONS")
+
         // Health check endpoint
         api.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
                 w.Header().Set("Content-Type", "application/json")
@@ -140,6 +143,7 @@ func setupRoutes() *mux.Router {
     "/api/v1/sitemap/all-documents": "GET - Sitemap: All documents",
     "/api/v1/search?q={query}&limit={limit}&offset={offset}&kurum={institution}&kurum_id={id}": "GET - Global search in titles, content, tags, institutions",
     "/api/v1/autocomplete?q={partial_query}&limit={limit}&kurum={institution}": "GET - Autocomplete suggestions for search",
+    "/api/v1/statistics": "GET - Get statistics (total institutions, total documents, document types)",
     "/api/v1/health": "GET - Health check"
   },
   "database": "Connected to MongoDB Atlas",

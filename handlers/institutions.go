@@ -95,6 +95,7 @@ func GetInstitutions(w http.ResponseWriter, r *http.Request) {
                         KurumAdi:      kurum.KurumAdi,
                         KurumLogo:     kurum.KurumLogo,
                         KurumAciklama: kurum.KurumAciklama,
+                        Detsis:        kurum.Detsis,
                         Count:         count,
                 }
                 institutions = append(institutions, institution)

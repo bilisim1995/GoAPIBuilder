@@ -10,6 +10,7 @@ type Kurum struct {
         KurumAdi      string             `bson:"kurum_adi" json:"kurum_adi"`
         KurumLogo     string             `bson:"kurum_logo" json:"kurum_logo"`
         KurumAciklama string             `bson:"aciklama" json:"kurum_aciklama"`
+        Detsis        string             `bson:"detsis" json:"detsis"`
 }
 
 // DocumentMetadata represents the metadata collection structure
@@ -70,6 +71,7 @@ type Institution struct {
         KurumAdi      string `json:"kurum_adi" bson:"kurum_adi"`
         KurumLogo     string `json:"kurum_logo" bson:"kurum_logo"`
         KurumAciklama string `json:"kurum_aciklama" bson:"kurum_aciklama"`
+        Detsis        string `json:"detsis" bson:"detsis"`
         Count         int32  `json:"count" bson:"count"`
 }
 
